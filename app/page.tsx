@@ -261,7 +261,6 @@ export default function Home() {
             <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-gray-500 font-medium">
               <Link href="/terms" className="hover:text-black transition-colors">Terms</Link>
               <Link href="/refund" className="hover:text-black transition-colors">Refund</Link>
-              <Link href="/shipping" className="hover:text-black transition-colors">Shipping</Link>
               <Link href="/privacy" className="hover:text-black transition-colors">Privacy</Link>
               <Link href="/about" className="hover:text-black transition-colors">About</Link>
               <Link href="/contact" className="hover:text-black transition-colors">Contact</Link>
