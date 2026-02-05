@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* Grid Background Pattern */
+/* Clean Background */
+body {
+  background-color: #ffffff;
+  color: #000000;
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, #f4f4f5 1px, transparent 1px),
+    linear-gradient(to bottom, #f4f4f5 1px, transparent 1px);
+}
+
+body {
+  font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* Hide Next.js development indicator */
+#__next-build-watcher {
+  display: none !important;
+}
