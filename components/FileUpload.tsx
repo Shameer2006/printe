@@ -37,24 +37,50 @@ export function FileUpload({ onFilesChange, onContinue, totalPages }: FileUpload
             if (!newFiles || newFiles.length === 0) return;
 
             setIsProcessing(true);
-            const pdfFiles = Array.from(newFiles).filter(
-                (file) => file.type === "application/pdf"
-            );
+            try {
+                const pdfFiles = Array.from(newFiles).filter(
+                    (file) => file.type === "application/pdf"
+                );
 
-            const filesWithPages: FileWithPages[] = [];
-            for (const file of pdfFiles) {
-                const pages = await countPdfPages(file);
-                filesWithPages.push({ file, pages });
+                if (pdfFiles.length === 0) {
+                    setIsProcessing(false);
+                    return;
+                }
+
+                // Combine existing files with new files for logic processing
+                const existingFiles = files.map(f => f.file);
+                const allFiles = [...existingFiles, ...pdfFiles];
+
+                let finalFile: File;
+                let finalPages: number;
+
+                if (allFiles.length > 1) {
+                    // Merge if more than one file
+                    const { mergePDFs } = await import("@/lib/utils");
+                    const mergedBlob = await mergePDFs(allFiles);
+                    finalFile = new File([mergedBlob], `Merged (${allFiles.length} files).pdf`, { type: "application/pdf" });
+                    finalPages = await countPdfPages(finalFile);
+                } else {
+                    // Just take the single file
+                    finalFile = allFiles[0];
+                    finalPages = await countPdfPages(finalFile);
+                }
+
+                const newFileWithPages: FileWithPages = { file: finalFile, pages: finalPages };
+
+                // Replace existing files with the result (single file logic)
+                const updatedFiles = [newFileWithPages];
+                setFiles(updatedFiles);
+                onFilesChange([finalFile], finalPages);
+            } catch (error) {
+                console.error("Error processing files:", error);
+                // Optionally show error toast here
+            } finally {
+                setIsProcessing(false);
+                // Reset input value to allow selecting the same file triggers change again
+                const input = document.getElementById("file-upload") as HTMLInputElement;
+                if (input) input.value = "";
             }
-
-            const updatedFiles = [...files, ...filesWithPages];
-            setFiles(updatedFiles);
-
-            const totalPages = updatedFiles.reduce((sum, f) => sum + f.pages, 0);
-            const fileArray = updatedFiles.map((f) => f.file);
-            onFilesChange(fileArray, totalPages);
-
-            setIsProcessing(false);
         },
         [files, onFilesChange]
     );
