@@ -7,7 +7,7 @@ import { Completion } from "@/components/Completion";
 import { Button } from "@/components/ui/button";
 import { mergePDFs, generateOrderCode } from "@/lib/utils";
 import { db, storage } from "@/lib/firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -127,12 +127,15 @@ export default function Home() {
       // But state update batching in React 18+ usually handles this. 
       // We will use the 'orderCode' state currently in scope.
 
+      // We will use the 'orderCode' state currently in scope.
+      let orderDocId: string | null = null;
+
       try {
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Firestore write timeout after 10 seconds')), 10000);
         });
 
-        const writePromise = addDoc(collection(db, "orders"), {
+        const writePromise = setDoc(doc(db, "orders", orderCode), {
           orderCode, // Use the state set in handleContinue
           mobileNumber,
           totalPages,
@@ -141,12 +144,14 @@ export default function Home() {
           printLayout,
           amount: totalCost,
           fileUrl,
+          payment_status: "PENDING",
           createdAt: new Date().toISOString(),
           status: "pending",
         });
 
-        const docRef = await Promise.race([writePromise, timeoutPromise]) as any;
-        console.log("Saved to Firestore with ID:", docRef.id);
+        await Promise.race([writePromise, timeoutPromise]);
+        console.log("Saved to Firestore with ID:", orderCode);
+        orderDocId = orderCode;
       } catch (firestoreError: any) {
         console.error("Firestore Error:", firestoreError);
         toast.error("Order saved locally (Database connection failed)");
@@ -166,8 +171,22 @@ export default function Home() {
         theme: {
           color: "#000000",
         },
-        handler: function (response: any) {
+        handler: async function (response: any) {
           console.log("Payment successful:", response);
+
+          if (orderDocId) {
+            try {
+              const orderRef = doc(db, "orders", orderDocId);
+              await updateDoc(orderRef, {
+                payment_status: "PAID",
+                razorpay_payment_id: response.razorpay_payment_id
+              });
+              console.log("Order status updated to success");
+            } catch (updateError) {
+              console.error("Failed to update order status:", updateError);
+            }
+          }
+
           toast.success("Payment successful!");
           setStep("complete");
           setIsProcessing(false);
