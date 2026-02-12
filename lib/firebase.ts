@@ -1,12 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getStorage } from "firebase/storage";
-import {
-    initializeFirestore,
-    persistentLocalCache,
-    persistentMultipleTabManager
-} from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 
-// REPLACE WITH YOUR ACTUAL KEYS FROM CONSOLE
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -15,16 +10,10 @@ const firebaseConfig = {
     messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
-
 const app = initializeApp(firebaseConfig);
 
-// CRITICAL: Forces standard HTTP to bypass strict firewalls
-const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
-    localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-    })
-});
+// Standard Firestore initialization - enables direct server writes
+const db = getFirestore(app);
 
 const storage = getStorage(app);
 
