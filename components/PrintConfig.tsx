@@ -4,6 +4,16 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Eye, X } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const PdfPreview = dynamic(() => import("./PdfPreview"), {
+    ssr: false,
+    loading: () => (
+        <div className="flex items-center justify-center h-full w-full bg-gray-50 rounded-xl border border-gray-200">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        </div>
+    ),
+});
 
 interface PrintConfigProps {
     file: File | null;
@@ -71,6 +81,7 @@ export function PrintConfig({
                     {file && (
                         <div className="pt-2">
                             <Button
+                                type="button"
                                 variant="outline"
                                 size="sm"
                                 className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
@@ -243,12 +254,8 @@ export function PrintConfig({
                                 <X className="h-5 w-5" />
                             </Button>
                         </div>
-                        <div className="flex-1 bg-gray-50 p-4">
-                            <iframe
-                                src={URL.createObjectURL(file)}
-                                className="w-full h-full rounded-xl border border-gray-200 bg-white"
-                                title="PDF Preview"
-                            />
+                        <div className="flex-1 bg-gray-50 p-4 overflow-hidden">
+                            <PdfPreview file={file} />
                         </div>
                     </div>
                 </div>
