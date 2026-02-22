@@ -12,7 +12,10 @@ export async function mergePDFs(files: File[]): Promise<Blob> {
   for (const file of files) {
     if (file.type === 'application/pdf') {
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await PDFDocument.load(arrayBuffer);
+      const pdf = await PDFDocument.load(arrayBuffer, {
+        updateMetadata: false,
+        throwOnInvalidObject: false
+      } as any);
       const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
       copiedPages.forEach((page) => mergedPdf.addPage(page));
     } else if (file.type.startsWith('image/')) {

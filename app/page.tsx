@@ -157,7 +157,7 @@ export default function Home() {
         });
 
         await Promise.race([writePromise, timeoutPromise]);
-        console.log("Saved to Firestore with ID:", orderCode);
+        // console.log("Saved to Firestore with ID:", orderCode);
         orderDocId = orderCode;
       } catch (firestoreError: any) {
         console.error("Firestore Error:", firestoreError);

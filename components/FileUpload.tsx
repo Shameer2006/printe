@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Upload, FileText, X } from "lucide-react";
-import { PDFDocument } from "pdf-lib";
+import { useState, useCallback, useRef } from "react";
+import { Upload, FileText, X, Lock, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { isPdfEncrypted, getPdfPageCount, decryptPdf } from "@/lib/pdf-decrypt";
 
 interface FileUploadProps {
     onFilesChange: (files: File[], totalPages: number) => void;
@@ -20,75 +21,177 @@ export function FileUpload({ onFilesChange, onContinue, totalPages }: FileUpload
     const [files, setFiles] = useState<FileWithPages[]>([]);
     const [isDragging, setIsDragging] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const countPdfPages = async (file: File): Promise<number> => {
-        try {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdfDoc = await PDFDocument.load(arrayBuffer);
-            return pdfDoc.getPageCount();
-        } catch (error) {
-            console.error("Error counting pages:", error);
-            return 0;
-        }
-    };
+    // Password Prompt State
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [password, setPassword] = useState("");
+    const [passwords, setPasswords] = useState<Record<string, string>>({});
+    const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+    const [passwordError, setPasswordError] = useState(false);
+
+    // Batch State
+    const [currentBatch, setCurrentBatch] = useState<File[]>([]);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFiles = useCallback(
-        async (newFiles: FileList | null) => {
-            if (!newFiles || newFiles.length === 0) return;
+        async (newFiles: File[] | FileList | null) => {
+            if (!newFiles || (newFiles instanceof FileList ? newFiles.length === 0 : newFiles.length === 0)) return;
 
             setIsProcessing(true);
+            setError(null);
             try {
-                const pdfFiles = Array.from(newFiles).filter(
-                    (file) => file.type === "application/pdf" ||
-                        file.type.startsWith("image/")
+                const incomingFiles = Array.from(newFiles).filter(
+                    (file) => file.type === "application/pdf" || file.type.startsWith("image/")
                 );
 
-                if (pdfFiles.length === 0) {
+                if (incomingFiles.length === 0) {
                     setIsProcessing(false);
                     return;
                 }
 
-                // Combine existing files with new files for logic processing
+                // Store the batch for later (in case password prompt interrupts)
                 const existingFiles = files.map(f => f.file);
-                const allFiles = [...existingFiles, ...pdfFiles];
+                const allFiles = [...existingFiles, ...incomingFiles];
+                setCurrentBatch(allFiles);
 
-                // Check if we need to process/convert files (if > 1 file or if single file is not PDF)
-                const needsProcessing = allFiles.length > 1 || allFiles[0].type !== "application/pdf";
+                // Check each PDF for encryption BEFORE merging
+                for (const file of allFiles) {
+                    if (file.type === 'application/pdf') {
+                        const encrypted = await isPdfEncrypted(file);
+                        if (encrypted && !passwords[file.name]) {
+                            // This file needs a password — prompt the user
+                            setPendingFile(file);
+                            setShowPasswordPrompt(true);
+                            setIsProcessing(false);
+                            return;
+                        }
+                    }
+                }
+
+                // All passwords collected — decrypt any protected files first
+                const decryptedFiles: File[] = [];
+                for (const file of allFiles) {
+                    if (file.type === 'application/pdf' && passwords[file.name]) {
+                        const decrypted = await decryptPdf(file, passwords[file.name]);
+                        decryptedFiles.push(decrypted);
+                    } else {
+                        decryptedFiles.push(file);
+                    }
+                }
 
                 let finalFile: File;
                 let finalPages: number;
 
-                if (needsProcessing) {
-                    // Merge/Convert using our utility
-                    const { mergePDFs } = await import("@/lib/utils");
-                    const mergedBlob = await mergePDFs(allFiles);
-                    const name = allFiles.length > 1 ? `Merged (${allFiles.length} files).pdf` : allFiles[0].name.replace(/\.[^/.]+$/, "") + ".pdf";
-                    finalFile = new File([mergedBlob], name, { type: "application/pdf" });
-                    finalPages = await countPdfPages(finalFile);
+                if (decryptedFiles.length === 1 && decryptedFiles[0].type === 'application/pdf') {
+                    // Single PDF — use directly
+                    finalFile = decryptedFiles[0];
+                    finalPages = await getPdfPageCount(finalFile);
                 } else {
-                    // Just take the single PDF file
-                    finalFile = allFiles[0];
-                    finalPages = await countPdfPages(finalFile);
+                    // Multiple files or images — merge them
+                    const { mergePDFs } = await import("@/lib/utils");
+                    const mergedBlob = await mergePDFs(decryptedFiles);
+                    const name = decryptedFiles.length > 1
+                        ? `Merged (${decryptedFiles.length} files).pdf`
+                        : decryptedFiles[0].name.replace(/\.[^/.]+$/, "") + ".pdf";
+                    finalFile = new File([mergedBlob], name, { type: "application/pdf" });
+                    finalPages = await getPdfPageCount(finalFile);
                 }
 
                 const newFileWithPages: FileWithPages = { file: finalFile, pages: finalPages };
-
-                // Replace existing files with the result (single file logic)
-                const updatedFiles = [newFileWithPages];
-                setFiles(updatedFiles);
+                setFiles([newFileWithPages]);
+                setCurrentBatch([]);
                 onFilesChange([finalFile], finalPages);
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error processing files:", error);
-                // Optionally show error toast here
+                setError(error.message || "An error occurred while processing your files.");
             } finally {
                 setIsProcessing(false);
-                // Reset input value to allow selecting the same file triggers change again
-                const input = document.getElementById("file-upload") as HTMLInputElement;
-                if (input) input.value = "";
+                if (fileInputRef.current) fileInputRef.current.value = "";
             }
         },
-        [files, onFilesChange]
+        [files, onFilesChange, passwords, currentBatch]
     );
+
+    const handlePasswordSubmitFixed = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!pendingFile || !password) return;
+
+        setPasswordError(false);
+        setIsProcessing(true);
+
+        try {
+            // Verify the password is correct by trying to get page count
+            await getPdfPageCount(pendingFile, password);
+
+            // Password is correct — build the complete passwords map
+            const allPasswords = { ...passwords, [pendingFile.name]: password };
+            setPasswords(allPasswords);
+            setShowPasswordPrompt(false);
+            setPendingFile(null);
+            setPassword("");
+
+            // Process the batch inline (avoids stale closure issues with setTimeout)
+            const batch = currentBatch;
+
+            // Check if any OTHER files in the batch still need passwords
+            for (const file of batch) {
+                if (file.type === 'application/pdf' && file !== pendingFile) {
+                    const encrypted = await isPdfEncrypted(file);
+                    if (encrypted && !allPasswords[file.name]) {
+                        // Another file needs a password too
+                        setPendingFile(file);
+                        setShowPasswordPrompt(true);
+                        setIsProcessing(false);
+                        return;
+                    }
+                }
+            }
+
+            // All passwords collected — decrypt protected files
+            const decryptedFiles: File[] = [];
+            for (const file of batch) {
+                if (file.type === 'application/pdf' && allPasswords[file.name]) {
+                    const decrypted = await decryptPdf(file, allPasswords[file.name]);
+                    decryptedFiles.push(decrypted);
+                } else {
+                    decryptedFiles.push(file);
+                }
+            }
+
+            let finalFile: File;
+            let finalPages: number;
+
+            if (decryptedFiles.length === 1 && decryptedFiles[0].type === 'application/pdf') {
+                finalFile = decryptedFiles[0];
+                finalPages = await getPdfPageCount(finalFile);
+            } else {
+                const { mergePDFs } = await import("@/lib/utils");
+                const mergedBlob = await mergePDFs(decryptedFiles);
+                const name = decryptedFiles.length > 1
+                    ? `Merged (${decryptedFiles.length} files).pdf`
+                    : decryptedFiles[0].name.replace(/\.[^/.]+$/, "") + ".pdf";
+                finalFile = new File([mergedBlob], name, { type: "application/pdf" });
+                finalPages = await getPdfPageCount(finalFile);
+            }
+
+            const newFileWithPages: FileWithPages = { file: finalFile, pages: finalPages };
+            setFiles([newFileWithPages]);
+            setCurrentBatch([]);
+            onFilesChange([finalFile], finalPages);
+            setIsProcessing(false);
+        } catch (err: any) {
+            if (err.message === 'ENCRYPTED') {
+                setPasswordError(true);
+            } else {
+                console.error("Password submit error:", err);
+                setError(err.message || "Failed to unlock file.");
+                setShowPasswordPrompt(false);
+            }
+            setIsProcessing(false);
+        }
+    };
 
     const removeFile = (index: number) => {
         const updatedFiles = files.filter((_, i) => i !== index);
@@ -121,14 +224,14 @@ export function FileUpload({ onFilesChange, onContinue, totalPages }: FileUpload
         <div className="space-y-6">
             {/* Upload Area */}
             <div
-                className={`border-2 border-dashed rounded-3xl transition-all h-64 flex flex-col items-center justify-center cursor-pointer ${isDragging
+                className={`border-2 border-dashed rounded-3xl transition-all h-64 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden ${isDragging
                     ? "border-black bg-gray-50 scale-[1.01]"
                     : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/50"
-                    }`}
+                    } ${isProcessing ? "pointer-events-none opacity-60" : ""}`}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                onClick={() => document.getElementById("file-upload")?.click()}
+                onClick={() => fileInputRef.current?.click()}
             >
                 <div className="space-y-4 text-center px-4">
                     <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
@@ -141,9 +244,17 @@ export function FileUpload({ onFilesChange, onContinue, totalPages }: FileUpload
                         </p>
                     </div>
                 </div>
+                {isProcessing && (
+                    <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-sm font-bold text-gray-900">Processing...</p>
+                        </div>
+                    </div>
+                )}
                 <input
                     type="file"
-                    id="file-upload"
+                    ref={fileInputRef}
                     className="hidden"
                     accept="application/pdf,image/*"
                     multiple
@@ -151,6 +262,82 @@ export function FileUpload({ onFilesChange, onContinue, totalPages }: FileUpload
                     disabled={isProcessing}
                 />
             </div>
+
+            {error && (
+                <div className="p-4 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300">
+                    {error}
+                </div>
+            )}
+
+            {/* Password Prompt Modal-style Overlay */}
+            {showPasswordPrompt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="w-full max-w-md bg-white rounded-[32px] p-8 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                        <div className="flex flex-col items-center text-center space-y-6">
+                            <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center">
+                                <Lock className="h-8 w-8 text-amber-500" />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-2xl font-bold tracking-tight text-gray-900">Protected PDF</h3>
+                                <p className="text-gray-500 text-sm font-medium leading-relaxed px-4">
+                                    The file <span className="text-gray-900 font-bold">"{pendingFile?.name}"</span> is password protected.
+                                    Please enter the password to unlock it.
+                                </p>
+                            </div>
+
+                            <form onSubmit={handlePasswordSubmitFixed} className="w-full space-y-4">
+                                <div className="relative group">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-black">
+                                        <KeyRound className="h-5 w-5" />
+                                    </div>
+                                    <Input
+                                        type="password"
+                                        placeholder="Enter PDF password"
+                                        className={`h-14 pl-12 rounded-2xl border-2 transition-all text-lg font-medium bg-gray-50 focus:bg-white ${passwordError
+                                            ? "border-red-500 focus:ring-red-500/10"
+                                            : "border-gray-100 focus:border-black focus:ring-black/5"
+                                            }`}
+                                        value={password}
+                                        onChange={(e) => {
+                                            setPassword(e.target.value);
+                                            setPasswordError(false);
+                                        }}
+                                        autoFocus
+                                    />
+                                    {passwordError && (
+                                        <p className="absolute -bottom-6 left-2 text-xs font-bold text-red-500 animate-in slide-in-from-top-1">
+                                            Incorrect password. Please try again.
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-3 pt-4">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="flex-1 h-14 rounded-2xl text-gray-500 font-bold hover:bg-gray-100 transition-all"
+                                        onClick={() => {
+                                            setShowPasswordPrompt(false);
+                                            setPendingFile(null);
+                                            setPassword("");
+                                            setIsProcessing(false);
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        className="flex-[2] h-14 rounded-2xl bg-black hover:bg-gray-800 text-white font-bold shadow-lg shadow-black/10 transition-all active:scale-[0.98]"
+                                        disabled={!password || isProcessing}
+                                    >
+                                        Unlock File
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* File List & Summary */}
             {files.length > 0 && (
