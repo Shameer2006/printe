@@ -19,6 +19,7 @@ interface PrintConfigProps {
     file: File | null;
     totalPages: number;
     totalCost: number;
+    sheetsToPrint: number;
     onConfigChange: (config: {
         mobileNumber: string;
         isColor: boolean;
@@ -35,6 +36,7 @@ export function PrintConfig({
     file,
     totalPages,
     totalCost,
+    sheetsToPrint,
     onConfigChange,
     onBack,
     onPayment,
@@ -182,7 +184,6 @@ export function PrintConfig({
                             >
                                 <option value="1-in-1">Normal (1-in-1)</option>
                                 <option value="2-in-1">2-in-1</option>
-                                <option value="4-in-1">4-in-1</option>
                             </select>
                             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
                                 <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -196,12 +197,12 @@ export function PrintConfig({
                 {/* Cost Summary - Cards */}
                 <div className="bg-gray-50 rounded-2xl p-6 space-y-4 border border-gray-100">
                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500 font-medium">Pages to print</span>
-                        <span className="font-bold text-gray-900">{totalPages}</span>
+                        <span className="text-gray-500 font-medium">Physical sheets</span>
+                        <span className="font-bold text-gray-900">{sheetsToPrint} sheet{sheetsToPrint !== 1 ? 's' : ''}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500 font-medium">Rate per page</span>
-                        <span className="font-bold text-gray-900">₹{isColor ? "10.00" : "1.50"}</span>
+                        <span className="text-gray-500 font-medium">Rate per sheet</span>
+                        <span className="font-bold text-gray-900">₹{isColor ? "10.00" : (printSide === "double" ? "2.00" : "1.50")}</span>
                     </div>
                     <div className="h-px bg-gray-200" />
                     <div className="flex justify-between items-center text-xl font-bold">

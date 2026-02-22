@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { FileUpload } from "@/components/FileUpload";
 import { PrintConfig } from "@/components/PrintConfig";
 import { Completion } from "@/components/Completion";
+import { AIDocumentGenerator } from "@/components/AIDocumentGenerator";
 import { Button } from "@/components/ui/button";
 import { mergePDFs, generateOrderCode } from "@/lib/utils";
 import { db, storage } from "@/lib/firebase";
@@ -17,9 +18,11 @@ import heroImage1 from "./image1.png";
 import heroImage from "./image.png";
 
 type Step = "upload" | "config" | "payment" | "complete";
+type Mode = "upload" | "ai-doc";
 
 export default function Home() {
   const [step, setStep] = useState<Step>("upload");
+  const [mode, setMode] = useState<Mode>("upload");
   const [files, setFiles] = useState<File[]>([]);
   const [totalPages, setTotalPages] = useState(0);
   const [printSide, setPrintSide] = useState<"single" | "double">("single");
@@ -32,9 +35,13 @@ export default function Home() {
   // Background upload ref to store the running upload promise
   const uploadPromiseRef = useRef<Promise<string> | null>(null);
 
-  // Pricing logic (can be updated based on layout/sides if needed)
-  const pricePerPage = isColor ? 10 : 1.5;
-  const totalCost = totalPages * pricePerPage;
+  // Pricing logic
+  const pagesPerSide = printLayout === "2-in-1" ? 2 : 1;
+  const sidesPerSheet = printSide === "double" ? 2 : 1;
+  const sheetsToPrint = Math.ceil(totalPages / (pagesPerSide * sidesPerSheet));
+
+  const pricePerSheet = isColor ? 10 : (printSide === "double" ? 2 : 1.5);
+  const totalCost = sheetsToPrint * pricePerSheet;
 
   const handleFilesChange = (newFiles: File[], pages: number) => {
     setFiles(newFiles);
@@ -238,7 +245,35 @@ export default function Home() {
             {/* Content */}
             <div className="min-h-[400px]">
               {step === "upload" && (
-                <FileUpload onFilesChange={handleFilesChange} onContinue={handleContinue} totalPages={totalPages} />
+                <div className="space-y-6">
+                  {/* Mode Toggle */}
+                  <div className="flex items-center justify-center">
+                    <div className="inline-flex bg-gray-100 rounded-2xl p-1 gap-1">
+                      <button
+                        onClick={() => setMode("upload")}
+                        className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${mode === "upload"
+                          ? "bg-white text-black shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
+                          }`}
+                      >
+                        📄 Upload PDF
+                      </button>
+                      <button
+                        onClick={() => toast.info("AI Generator is currently under development. ✨")}
+                        className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 text-gray-400 cursor-not-allowed`}
+                      >
+                        ✨ AI Generator (Development)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Content based on mode */}
+                  {mode === "upload" ? (
+                    <FileUpload onFilesChange={handleFilesChange} onContinue={handleContinue} totalPages={totalPages} />
+                  ) : (
+                    <AIDocumentGenerator />
+                  )}
+                </div>
               )}
 
               {step === "config" && (
@@ -246,6 +281,7 @@ export default function Home() {
                   file={files.length > 0 ? files[0] : null}
                   totalPages={totalPages}
                   totalCost={totalCost}
+                  sheetsToPrint={sheetsToPrint}
                   onConfigChange={handleConfigChange}
                   onBack={() => setStep("upload")}
                   onPayment={handlePayment}

@@ -39,7 +39,8 @@ export function FileUpload({ onFilesChange, onContinue, totalPages }: FileUpload
             setIsProcessing(true);
             try {
                 const pdfFiles = Array.from(newFiles).filter(
-                    (file) => file.type === "application/pdf"
+                    (file) => file.type === "application/pdf" ||
+                        file.type.startsWith("image/")
                 );
 
                 if (pdfFiles.length === 0) {
@@ -51,17 +52,21 @@ export function FileUpload({ onFilesChange, onContinue, totalPages }: FileUpload
                 const existingFiles = files.map(f => f.file);
                 const allFiles = [...existingFiles, ...pdfFiles];
 
+                // Check if we need to process/convert files (if > 1 file or if single file is not PDF)
+                const needsProcessing = allFiles.length > 1 || allFiles[0].type !== "application/pdf";
+
                 let finalFile: File;
                 let finalPages: number;
 
-                if (allFiles.length > 1) {
-                    // Merge if more than one file
+                if (needsProcessing) {
+                    // Merge/Convert using our utility
                     const { mergePDFs } = await import("@/lib/utils");
                     const mergedBlob = await mergePDFs(allFiles);
-                    finalFile = new File([mergedBlob], `Merged (${allFiles.length} files).pdf`, { type: "application/pdf" });
+                    const name = allFiles.length > 1 ? `Merged (${allFiles.length} files).pdf` : allFiles[0].name.replace(/\.[^/.]+$/, "") + ".pdf";
+                    finalFile = new File([mergedBlob], name, { type: "application/pdf" });
                     finalPages = await countPdfPages(finalFile);
                 } else {
-                    // Just take the single file
+                    // Just take the single PDF file
                     finalFile = allFiles[0];
                     finalPages = await countPdfPages(finalFile);
                 }
@@ -131,8 +136,8 @@ export function FileUpload({ onFilesChange, onContinue, totalPages }: FileUpload
                     </div>
                     <div>
                         <h3 className="text-xl font-bold mb-1 tracking-tight">Tap to upload</h3>
-                        <p className="text-sm text-gray-500 font-medium">
-                            PDF documents only
+                        <p className="text-sm text-gray-500 font-medium text-center">
+                            PDF or Images
                         </p>
                     </div>
                 </div>
@@ -140,7 +145,7 @@ export function FileUpload({ onFilesChange, onContinue, totalPages }: FileUpload
                     type="file"
                     id="file-upload"
                     className="hidden"
-                    accept="application/pdf"
+                    accept="application/pdf,image/*"
                     multiple
                     onChange={(e) => handleFiles(e.target.files)}
                     disabled={isProcessing}
