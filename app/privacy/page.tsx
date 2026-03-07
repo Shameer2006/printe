@@ -12,48 +12,63 @@ export default function Privacy() {
                     <h1 className="text-2xl font-bold tracking-tight">Privacy Policy</h1>
                 </div>
 
-                <div className="bg-gray-50 rounded-2xl p-8 space-y-6 border border-gray-100 text-sm text-gray-700">
-                    <p>Last updated: {new Date().toLocaleDateString()}</p>
+                <div className="bg-gray-50 rounded-2xl p-8 space-y-6 border border-gray-100 text-sm text-gray-700 leading-relaxed">
+                    <p>Last updated: March 07, 2026</p>
 
-                    <section className="space-y-2">
-                        <h2 className="text-lg font-bold text-black">1. Introduction</h2>
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">1. Overiview</h2>
                         <p>
-                            Welcome to Printeg. We respect your privacy and are committed to protecting your personal data. This privacy policy will inform you as to how we look after your personal data when you visit our website and tell you about your privacy rights and how the law protects you.
+                            Printeg ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our printing services.
                         </p>
                     </section>
 
-                    <section className="space-y-2">
-                        <h2 className="text-lg font-bold text-black">2. Data We Collect</h2>
-                        <p>We may collect, use, store and transfer different kinds of personal data about you which we have grouped together follows:</p>
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">2. Information We Collect</h2>
+                        <p>We collect information that you provide directly to us when you use our services:</p>
                         <ul className="list-disc pl-5 space-y-1">
-                            <li><strong>Identity Data:</strong> includes mobile number.</li>
-                            <li><strong>Contact Data:</strong> includes email address and telephone number.</li>
-                            <li><strong>Transaction Data:</strong> includes details about payments to and from you and other details of products and services you have purchased from us.</li>
-                            <li><strong>Content Data:</strong> includes the PDF files you upload for printing. These files are stored securely and used solely for the purpose of printing your order.</li>
+                            <li><strong>Personal Information:</strong> Mobile number, which is used for order identification and communication.</li>
+                            <li><strong>Order Content:</strong> PDF documents and images you upload for printing. These are temporarily stored and used solely to fulfill your print request.</li>
+                            <li><strong>Payment Information:</strong> We do not store your credit card or bank details. All payments are processed through secure third-party payment gateways (like PhonePe or Razorpay).</li>
                         </ul>
                     </section>
 
-                    <section className="space-y-2">
-                        <h2 className="text-lg font-bold text-black">3. How We Use Your Data</h2>
-                        <p>We will only use your personal data when the law allows us to. Most commonly, we will use your personal data in the following circumstances:</p>
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">3. How We Use Your Information</h2>
+                        <p>We use the collected information to:</p>
                         <ul className="list-disc pl-5 space-y-1">
-                            <li>To process and deliver your order.</li>
-                            <li>To manage your relationship with us.</li>
-                            <li>To improve our website, products/services, marketing or customer relationships.</li>
+                            <li>Process and fulfill your printing orders.</li>
+                            <li>Provide customer support and respond to your requests.</li>
+                            <li>Send transaction-related communications.</li>
+                            <li>Comply with legal obligations.</li>
                         </ul>
                     </section>
 
-                    <section className="space-y-2">
-                        <h2 className="text-lg font-bold text-black">4. Data Security</h2>
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">4. Data Retention</h2>
                         <p>
-                            We have put in place appropriate security measures to prevent your personal data from being accidentally lost, used or accessed in an unauthorized way, altered or disclosed. Your uploaded files are stored in secure cloud storage and are accessible only to authorized personnel for processing your order.
+                            We retain your uploaded files only for as long as necessary to complete your order and ensure quality. Typically, uploaded files are automatically deleted from our servers after the order is collected or after a short retention period for reprint requests.
                         </p>
                     </section>
 
-                    <section className="space-y-2">
-                        <h2 className="text-lg font-bold text-black">5. Contact Us</h2>
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">5. Third-Party Disclosures</h2>
                         <p>
-                            If you have any questions about this privacy policy or our privacy practices, please contact us at: <a href="mailto:printeg.mailbox@gmail.com" className="text-blue-600 hover:underline">printeg.mailbox@gmail.com</a>.
+                            We do not sell or rent your personal information. We may share information with service providers who assist us in our operations (e.g., payment processors). These parties are obligated to keep your information confidential.
+                        </p>
+                    </section>
+
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">6. Security</h2>
+                        <p>
+                            We implement a variety of security measures to maintain the safety of your personal information. Your documents are stored in secure environments and are only accessible by authorized personnel during the fulfillment process.
+                        </p>
+                    </section>
+
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">7. Contact Information</h2>
+                        <p>
+                            If you have any questions about this Privacy Policy, please contact us at:<br />
+                            <strong>Email:</strong> <a href="mailto:printeg.workspace@gmail.com" className="text-blue-600 hover:underline">printeg.workspace@gmail.com</a>
                         </p>
                     </section>
                 </div>

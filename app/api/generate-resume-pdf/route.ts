@@ -58,11 +58,6 @@ export async function POST(request: Request) {
     headers.set('Content-Type', 'application/pdf');
     headers.set('Content-Disposition', `attachment; filename="${filename}"`);
 
-    // Relay remaining credits if available
-    const credits = response.headers['x-credits-remaining'] || response.headers['x-ratelimit-remaining'];
-    if (credits) {
-      headers.set('X-Credits-Remaining', credits.toString());
-    }
 
     return new NextResponse(response.data, { headers });
 

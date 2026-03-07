@@ -30,6 +30,8 @@ interface ODLetterData extends BaseFormData {
 }
 
 interface LeaveLetterData extends BaseFormData {
+    schoolName: string;
+    classSection: string;
     reason: string;
     startDate: string;
     endDate: string;
@@ -45,12 +47,16 @@ interface FormalLetterData extends BaseFormData {
 
 type FormData = ResumeData | ODLetterData | LeaveLetterData | FormalLetterData;
 
-export function AIDocumentGenerator() {
+interface AIDocumentGeneratorProps {
+    onProceed?: (blob: Blob, pageCount: number) => void;
+}
+
+export function AIDocumentGenerator({ onProceed }: AIDocumentGeneratorProps) {
     const [docType, setDocType] = useState<DocumentType>('resume');
     const [isLoading, setIsLoading] = useState(false);
     const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string | null>(null);
+    const [generatedBlob, setGeneratedBlob] = useState<Blob | null>(null);
 
-    const [credits, setCredits] = useState<string | null>(null);
 
     const [resumeData, setResumeData] = useState<ResumeData>({
         fullName: '',
@@ -72,6 +78,8 @@ export function AIDocumentGenerator() {
 
     const [leaveData, setLeaveData] = useState<LeaveLetterData>({
         fullName: '',
+        schoolName: '',
+        classSection: '',
         reason: '',
         startDate: '',
         endDate: '',
@@ -91,6 +99,7 @@ export function AIDocumentGenerator() {
         if (generatedPdfUrl) {
             window.URL.revokeObjectURL(generatedPdfUrl);
             setGeneratedPdfUrl(null);
+            setGeneratedBlob(null);
         }
     };
 
@@ -98,6 +107,7 @@ export function AIDocumentGenerator() {
         if (generatedPdfUrl) {
             window.URL.revokeObjectURL(generatedPdfUrl);
             setGeneratedPdfUrl(null);
+            setGeneratedBlob(null);
         }
 
         if (type === 'resume') setResumeData(prev => ({ ...prev, [field]: value }));
@@ -107,6 +117,8 @@ export function AIDocumentGenerator() {
     };
 
     const buildPrompt = (): string => {
+        const noImageInstruction = "\nStrictly avoid including any images, logos, or placeholders for pictures/photos. Only text and standard document formatting should be included.";
+
         if (docType === 'resume') {
             return `Create a professional, well-formatted resume for ${resumeData.fullName}. 
       Job Title: ${resumeData.jobTitle}. 
@@ -114,7 +126,7 @@ export function AIDocumentGenerator() {
       Skills: ${resumeData.skills}. 
       Education: ${resumeData.education}. 
       Notes: ${resumeData.additionalNotes}. 
-      Format as a clean, ATS-friendly resume.`;
+      Format as a clean, ATS-friendly resume.${noImageInstruction}`;
         }
 
         if (docType === 'od_letter') {
@@ -125,18 +137,20 @@ export function AIDocumentGenerator() {
       Event/Purpose: ${odData.eventName}.
       Duration/Date: ${odData.duration}.
       Reason: ${odData.reason}.
-      The letter should be professional and addressed to the Head of Department.`;
+      The letter should be professional and addressed to the Head of Department.${noImageInstruction}`;
         }
 
         if (docType === 'leave_letter') {
             return `Write a formal leave application letter.
       From: ${leaveData.fullName}.
+      School/College: ${leaveData.schoolName}.
+      Class & Section: ${leaveData.classSection}.
       To: ${leaveData.recipient}.
       Reason for Leave: ${leaveData.reason}.
       Start Date: ${leaveData.startDate}.
       End Date: ${leaveData.endDate}.
       Total Days: ${leaveData.totalDays}.
-      State the request clearly and professionally.`;
+      State the request clearly and professionally.${noImageInstruction}`;
         }
 
         if (docType === 'formal_letter') {
@@ -145,7 +159,7 @@ export function AIDocumentGenerator() {
       Recipient: ${formalData.recipientDetails}.
       Subject: ${formalData.subject}.
       Content/Context: ${formalData.content}.
-      Follow standard formal letter formatting.`;
+      Follow standard formal letter formatting.${noImageInstruction}`;
         }
 
         return '';
@@ -180,11 +194,6 @@ export function AIDocumentGenerator() {
                 body: JSON.stringify({ prompt, name }),
             });
 
-            // Capture credits from headers
-            const remainingCredits = response.headers.get('X-Credits-Remaining');
-            if (remainingCredits) {
-                setCredits(remainingCredits);
-            }
 
             if (!response.ok) {
                 let errorMessage = 'Failed to generate PDF';
@@ -198,6 +207,7 @@ export function AIDocumentGenerator() {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             setGeneratedPdfUrl(url);
+            setGeneratedBlob(blob);
 
             toast.success('Document generated! Download it below.');
         } catch (error: any) {
@@ -380,6 +390,30 @@ export function AIDocumentGenerator() {
                     <>
                         <div className="space-y-1.5">
                             <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                                <Building className="h-3.5 w-3.5" /> School/College Name
+                            </Label>
+                            <Input
+                                placeholder="Enter your school or college name"
+                                value={leaveData.schoolName}
+                                onChange={(e) => updateData('leave_letter', 'schoolName', e.target.value)}
+                                className="h-11 rounded-xl bg-white"
+                                disabled={isLoading}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                                <GraduationCap className="h-3.5 w-3.5" /> Class & Section
+                            </Label>
+                            <Input
+                                placeholder="e.g. 10th - A"
+                                value={leaveData.classSection}
+                                onChange={(e) => updateData('leave_letter', 'classSection', e.target.value)}
+                                className="h-11 rounded-xl bg-white"
+                                disabled={isLoading}
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
                                 <User className="h-3.5 w-3.5" /> To (Recipient)
                             </Label>
                             <Input
@@ -495,32 +529,52 @@ export function AIDocumentGenerator() {
 
             {/* Result */}
             {generatedPdfUrl && (
-                <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <Button
-                        onClick={handleDownload}
-                        className="flex-1 h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold"
-                    >
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                    </Button>
-                    <Button
-                        onClick={() => window.open(generatedPdfUrl, '_blank')}
-                        variant="outline"
-                        className="flex-1 h-12 rounded-xl border-gray-200 hover:bg-gray-50 font-bold"
-                    >
-                        <Eye className="h-4 w-4 mr-2" />
-                        Preview
-                    </Button>
+                <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex gap-3">
+                        <Button
+                            onClick={handleDownload}
+                            className="flex-1 h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold"
+                        >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download
+                        </Button>
+                        <Button
+                            onClick={() => window.open(generatedPdfUrl, '_blank')}
+                            variant="outline"
+                            className="flex-1 h-12 rounded-xl border-gray-200 hover:bg-gray-50 font-bold"
+                        >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Preview
+                        </Button>
+                    </div>
+
+                    {onProceed && (
+                        <Button
+                            onClick={async () => {
+                                if (generatedBlob && onProceed) {
+                                    try {
+                                        const { getPDFPageCount } = await import('@/lib/utils');
+                                        const pages = await getPDFPageCount(generatedBlob);
+                                        onProceed(generatedBlob, pages);
+                                    } catch (err) {
+                                        console.error("Failed to get page count:", err);
+                                        toast.error("Process failed. Please try again.");
+                                    }
+                                }
+                            }}
+                            className="w-full h-14 text-lg font-bold rounded-2xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg active:scale-[0.98] transition-all"
+                        >
+                            <span className="flex items-center gap-2">
+                                <Send className="h-5 w-5" />
+                                Proceed to Print
+                            </span>
+                        </Button>
+                    )}
                 </div>
             )}
 
             {/* Branding & Credits */}
             <div className="pt-4 flex flex-col items-center gap-2">
-                {credits && (
-                    <div className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 uppercase tracking-wider animate-in fade-in duration-500">
-                        Credits Remaining: {credits}
-                    </div>
-                )}
                 <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     <span>Powered by</span>
                     <div className="flex items-center gap-1 text-black">

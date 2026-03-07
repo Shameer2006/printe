@@ -52,3 +52,12 @@ export function generateOrderCode(): string {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
+export async function getPDFPageCount(blob: Blob): Promise<number> {
+  const arrayBuffer = await blob.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(arrayBuffer, {
+    updateMetadata: false,
+    throwOnInvalidObject: false
+  } as any);
+  return pdfDoc.getPageCount();
+}
+

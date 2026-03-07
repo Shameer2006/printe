@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { FileUpload } from "@/components/FileUpload";
 import { PrintConfig } from "@/components/PrintConfig";
 import { Completion } from "@/components/Completion";
@@ -31,6 +31,28 @@ export default function Home() {
   const [isColor, setIsColor] = useState(false);
   const [orderCode, setOrderCode] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isAIDoc, setIsAIDoc] = useState(false);
+  const [copies, setCopies] = useState(1);
+
+  // Handle return from PhonePe Payment Gateway
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const returnStep = params.get("step");
+      const returnOrderCode = params.get("orderCode");
+      const returnError = params.get("error");
+
+      if (returnStep === "complete" && returnOrderCode) {
+        setStep("complete");
+        setOrderCode(returnOrderCode);
+        // Clear the URL to avoid repeating on refresh
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (returnError) {
+        toast.error(returnError);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, []);
 
   // Background upload ref to store the running upload promise
   const uploadPromiseRef = useRef<Promise<string> | null>(null);
@@ -41,7 +63,8 @@ export default function Home() {
   const sheetsToPrint = Math.ceil(totalPages / (pagesPerSide * sidesPerSheet));
 
   const pricePerSheet = isColor ? 10 : (printSide === "double" ? 2 : 1.5);
-  const totalCost = sheetsToPrint * pricePerSheet;
+  const aiCharge = isAIDoc ? 3 : 0;
+  const totalCost = (sheetsToPrint * pricePerSheet * copies) + aiCharge;
 
   const handleFilesChange = (newFiles: File[], pages: number) => {
     setFiles(newFiles);
@@ -68,8 +91,8 @@ export default function Home() {
   const handleContinue = async () => {
     if (files.length === 0) return;
 
+    setIsAIDoc(false);
     setStep("config");
-    console.log("Starting background upload process...");
 
     // Generate order code immediately
     const code = generateOrderCode();
@@ -78,20 +101,47 @@ export default function Home() {
     // Start upload in background and store promise
     uploadPromiseRef.current = (async () => {
       try {
-        console.log("Merging PDFs in background...");
         const mergedPdf = await mergePDFs(files);
 
-        console.log("Uploading to Firebase Storage...");
+
         const storageRef = ref(storage, `orders/${code}_${Date.now()}.pdf`);
         await uploadBytes(storageRef, mergedPdf);
 
-        console.log("Upload complete. Getting download URL...");
         const url = await getDownloadURL(storageRef);
-        console.log("Background upload finished. URL:", url);
         return url;
       } catch (error) {
-        console.error("Background upload failed:", error);
+
         throw error;
+      }
+    })();
+  };
+
+  const handleAIProceed = async (blob: Blob, pages: number) => {
+    setIsProcessing(true);
+    setIsAIDoc(true);
+    setStep("config");
+    setTotalPages(pages);
+
+    const code = generateOrderCode();
+    setOrderCode(code);
+
+    const file = new File([blob], "AI_Document.pdf", { type: "application/pdf" });
+    setFiles([file]);
+
+    uploadPromiseRef.current = (async () => {
+      try {
+        console.log("Uploading AI PDF to Firebase Storage...");
+        const storageRef = ref(storage, `orders/${code}_${Date.now()}.pdf`);
+        await uploadBytes(storageRef, blob);
+
+        const url = await getDownloadURL(storageRef);
+
+        return url;
+      } catch (error) {
+        console.error("AI PDF upload failed:", error);
+        throw error;
+      } finally {
+        setIsProcessing(false);
       }
     })();
   };
@@ -103,7 +153,7 @@ export default function Home() {
     }
 
     setIsProcessing(true);
-    console.log("Starting payment process...");
+
 
     try {
       // 1. Ensure file upload is complete (or wait for it)
@@ -119,33 +169,31 @@ export default function Home() {
         // If it's still running, we wait here
         fileUrl = await uploadPromiseRef.current;
       } catch (uploadError) {
-        console.error("Upload failed:", uploadError);
+
         toast.error("Failed to upload file. Please try again.");
         setIsProcessing(false);
         return;
       }
 
       // 2. Save order to Firestore
-      console.log("Saving to Firestore...");
-      // Re-use the orderCode set in handleContinue
-      // Note: orderCode in state might technically be stale in closure if we didn't use refs, 
-      // but since we set it in handleContinue and this runs after, it should be fine.
-      // safely use the code from state or if we want to be 100% sure we could return it from promise too.
-      // But state update batching in React 18+ usually handles this. 
-      // We will use the 'orderCode' state currently in scope.
+      console.log("Saving order to database...");
 
-      // We will use the 'orderCode' state currently in scope.
+      if (!orderCode) {
+        throw new Error("Invalid order session. Please refresh and try again.");
+      }
+
       let orderDocId: string | null = null;
 
       try {
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Firestore write timeout after 10 seconds')), 10000);
+          setTimeout(() => reject(new Error('Firestore write timeout after 30 seconds. Check your connection.')), 30000);
         });
 
         const writePromise = setDoc(doc(db, "orders", orderCode), {
           orderCode, // Use the state set in handleContinue
           mobileNumber,
           totalPages,
+          copies,
           isColor,
           printSide,
           printLayout,
@@ -157,68 +205,38 @@ export default function Home() {
         });
 
         await Promise.race([writePromise, timeoutPromise]);
-        // console.log("Saved to Firestore with ID:", orderCode);
         orderDocId = orderCode;
       } catch (firestoreError: any) {
-        console.error("Firestore Error:", firestoreError);
-        toast.error("Order saved locally (Database connection failed)");
+        console.error("Firestore Write Error Detail:", firestoreError);
+        // Throw to the outer catch for UI toast
+        throw firestoreError;
       }
 
-      // 3. Open Razorpay Payment Gateway
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: totalCost * 100,
-        currency: "INR",
-        name: "Printeg",
-        description: `Print ${totalPages} pages (${isColor ? "Color" : "B&W"})`,
-        order_id: "",
-        prefill: {
-          contact: mobileNumber,
+      // 3. Initiate PhonePe Payment
+      const response = await fetch("/api/phonepe/pay", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        theme: {
-          color: "#000000",
-        },
-        handler: async function (response: any) {
-          console.log("Payment successful:", response);
+        body: JSON.stringify({
+          orderCode: orderDocId, // Use the generated order document ID
+          amount: totalCost,
+          mobileNumber,
+        }),
+      });
 
-          if (orderDocId) {
-            try {
-              const orderRef = doc(db, "orders", orderDocId);
-              await updateDoc(orderRef, {
-                payment_status: "PAID",
-                razorpay_payment_id: response.razorpay_payment_id
-              });
-              console.log("Order status updated to success");
-            } catch (updateError) {
-              console.error("Failed to update order status:", updateError);
-            }
-          }
+      const data = await response.json();
 
-          toast.success("Payment successful!");
-          setStep("complete");
-          setIsProcessing(false);
-        },
-        modal: {
-          ondismiss: function () {
-            console.log("Payment cancelled by user");
-            toast.error("Payment cancelled");
-            setIsProcessing(false);
-          },
-        },
-      };
-
-      // @ts-ignore
-      if (typeof window.Razorpay === "undefined") {
-        toast.error("Payment gateway not loaded. Please refresh and try again.");
+      if (data.redirectUrl) {
+        // Redirect the user to PhonePe's secure checkout page
+        window.location.href = data.redirectUrl;
+      } else {
+        console.error("Payment initiation failed:", data);
+        toast.error(data.error || "Payment gateway error. Please try again.");
         setIsProcessing(false);
-        return;
       }
-
-      // @ts-ignore
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
     } catch (error) {
-      console.error("Error processing order:", error);
+
       toast.error("Failed to process order. Please try again.");
       setIsProcessing(false);
     }
@@ -259,10 +277,13 @@ export default function Home() {
                         📄 Upload PDF
                       </button>
                       <button
-                        onClick={() => toast.info("AI Generator is currently under development. ✨")}
-                        className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 text-gray-400 cursor-not-allowed`}
+                        onClick={() => setMode("ai-doc")}
+                        className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${mode === "ai-doc"
+                          ? "bg-white text-black shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
+                          }`}
                       >
-                        ✨ AI Generator (Development)
+                        ✨ AI Generator
                       </button>
                     </div>
                   </div>
@@ -271,7 +292,7 @@ export default function Home() {
                   {mode === "upload" ? (
                     <FileUpload onFilesChange={handleFilesChange} onContinue={handleContinue} totalPages={totalPages} />
                   ) : (
-                    <AIDocumentGenerator />
+                    <AIDocumentGenerator onProceed={handleAIProceed} />
                   )}
                 </div>
               )}
@@ -282,6 +303,9 @@ export default function Home() {
                   totalPages={totalPages}
                   totalCost={totalCost}
                   sheetsToPrint={sheetsToPrint}
+                  isAIDoc={isAIDoc}
+                  copies={copies}
+                  onCopiesChange={setCopies}
                   onConfigChange={handleConfigChange}
                   onBack={() => setStep("upload")}
                   onPayment={handlePayment}

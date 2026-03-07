@@ -14,23 +14,23 @@ export default function About() {
 
                 <div className="bg-gray-50 rounded-2xl p-8 space-y-6 border border-gray-100 text-base text-gray-700 leading-relaxed">
                     <p>
-                        Welcome to <strong>Printeg</strong>, your go-to solution for fast, reliable, and high-quality online printing services. We understand the hassle of traditional printing shops—long queues, confusing pricing, and travel time. Printeg was built to solve this.
+                        Welcome to <strong>Printeg</strong>, India's emerging solution for fast, reliable, and high-quality online printing services. We are dedicated to simplifying the document printing experience for students, professionals, and businesses.
                     </p>
 
                     <p>
-                        Our mission is to make printing accessible to everyone, everywhere. Whether you are a student needings notes printed, a professional needing reports, or a business needing marketing materials, we've got you covered.
+                        At Printeg, we leverage technology to bridge the gap between digital documents and physical prints. Our platform allows you to upload, configure, and pay for your prints seamlessly, ensuring you spend less time in queues and more time on what matters.
                     </p>
 
-                    <h2 className="text-xl font-bold text-black mt-4">Why Choose Printeg?</h2>
+                    <h2 className="text-xl font-bold text-black mt-4">Our Values</h2>
                     <ul className="list-disc pl-5 space-y-2">
-                        <li><strong>Convenience:</strong> Upload your documents from the comfort of your home.</li>
-                        <li><strong>Quality:</strong> We use high-grade paper and top-quality printers for crisp output.</li>
-                        <li><strong>Pricing:</strong> Affordable rates with no hidden charges.</li>
-                        <li><strong>Speed:</strong> Quick processing and reliable delivery.</li>
+                        <li><strong>Efficiency:</strong> Rapid processing to meet your urgent deadlines.</li>
+                        <li><strong>Integrity:</strong> Transparent pricing with no hidden costs.</li>
+                        <li><strong>Quality:</strong> Ensuring every print is crisp, clear, and professional.</li>
+                        <li><strong>Security:</strong> Protecting your sensitive documents with industry-standard encryption.</li>
                     </ul>
 
-                    <p className="mt-4">
-                        Thank you for choosing Printeg. We look forward to serving you!
+                    <p className="mt-4 font-medium italic">
+                        "Your documents, printed with care and delivered with speed."
                     </p>
                 </div>
 

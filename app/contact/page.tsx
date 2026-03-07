@@ -12,25 +12,30 @@ export default function Contact() {
                     <h1 className="text-2xl font-bold tracking-tight">Contact Us</h1>
                 </div>
 
-                <div className="bg-gray-50 rounded-2xl p-6 space-y-6 border border-gray-100">
-                    <p className="text-gray-600">
-                        We are here to help! If you have any questions, concerns, or feedback, please feel free to reach out to us.
+                <div className="bg-gray-50 rounded-2xl p-8 space-y-8 border border-gray-100">
+                    <p className="text-gray-600 leading-relaxed">
+                        We are here to help! If you have any questions, concerns, or feedback regarding your print orders or our services, please reach out to us.
                     </p>
 
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="font-bold text-gray-900">Email</h3>
-                            <a href="mailto:printeg.workspace@gmail.com" className="text-blue-600 hover:underline">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-2">
+                            <h3 className="font-bold text-gray-900 uppercase text-xs tracking-widest">Merchant Name</h3>
+                            <p className="text-gray-700 font-medium">Printeg Operations</p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <h3 className="font-bold text-gray-900 uppercase text-xs tracking-widest">Email Support</h3>
+                            <a href="mailto:printeg.workspace@gmail.com" className="text-blue-600 hover:underline block">
                                 printeg.workspace@gmail.com
                             </a>
                         </div>
 
-                        <div>
-                            <h3 className="font-bold text-gray-900">Address</h3>
-                            <p className="text-gray-600">
-                                Printeg Operations<br />
-                                Chennai, Tamil Nadu<br />
-                                India
+                        <div className="space-y-2 md:col-span-2">
+                            <h3 className="font-bold text-gray-900 uppercase text-xs tracking-widest">Registered Address</h3>
+                            <p className="text-gray-700 leading-relaxed">
+                                Printeg HQ, <br />
+                                Chennai, Tamil Nadu, <br />
+                                India - 600001
                             </p>
                         </div>
                     </div>

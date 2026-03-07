@@ -20,6 +20,9 @@ interface PrintConfigProps {
     totalPages: number;
     totalCost: number;
     sheetsToPrint: number;
+    isAIDoc: boolean;
+    copies: number;
+    onCopiesChange: (copies: number) => void;
     onConfigChange: (config: {
         mobileNumber: string;
         isColor: boolean;
@@ -37,6 +40,9 @@ export function PrintConfig({
     totalPages,
     totalCost,
     sheetsToPrint,
+    isAIDoc,
+    copies,
+    onCopiesChange,
     onConfigChange,
     onBack,
     onPayment,
@@ -194,16 +200,49 @@ export function PrintConfig({
                     </div>
                 </div>
 
+                {/* Copies Control */}
+                <div className="space-y-2">
+                    <label className="text-sm font-semibold text-gray-900 ml-1">Number of Copies</label>
+                    <div className="flex items-center justify-between bg-gray-50 border-2 border-gray-200 rounded-xl h-14 px-4">
+                        <span className="text-base font-medium text-gray-600">Copies</span>
+                        <div className="flex items-center gap-4">
+                            <button
+                                type="button"
+                                onClick={() => onCopiesChange(Math.max(1, copies - 1))}
+                                disabled={copies <= 1}
+                                className="w-9 h-9 rounded-lg border-2 border-gray-200 bg-white text-lg font-bold flex items-center justify-center transition-all hover:bg-gray-100 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                                −
+                            </button>
+                            <span className="text-xl font-bold w-6 text-center">{copies}</span>
+                            <button
+                                type="button"
+                                onClick={() => onCopiesChange(Math.min(10, copies + 1))}
+                                disabled={copies >= 10}
+                                className="w-9 h-9 rounded-lg border-2 border-gray-200 bg-white text-lg font-bold flex items-center justify-center transition-all hover:bg-gray-100 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                                +
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Cost Summary - Cards */}
                 <div className="bg-gray-50 rounded-2xl p-6 space-y-4 border border-gray-100">
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-gray-500 font-medium">Physical sheets</span>
-                        <span className="font-bold text-gray-900">{sheetsToPrint} sheet{sheetsToPrint !== 1 ? 's' : ''}</span>
+                        <span className="font-bold text-gray-900">{sheetsToPrint} sheet{sheetsToPrint !== 1 ? 's' : ''} × {copies} cop{copies > 1 ? 'ies' : 'y'}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-gray-500 font-medium">Rate per sheet</span>
                         <span className="font-bold text-gray-900">₹{isColor ? "10.00" : (printSide === "double" ? "2.00" : "1.50")}</span>
                     </div>
+                    {isAIDoc && (
+                        <div className="flex justify-between items-center text-sm text-blue-600 font-medium">
+                            <span>AI Generation Fee</span>
+                            <span>₹3.00</span>
+                        </div>
+                    )}
                     <div className="h-px bg-gray-200" />
                     <div className="flex justify-between items-center text-xl font-bold">
                         <span>Total Pay</span>

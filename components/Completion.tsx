@@ -1,6 +1,8 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { CheckCircle2, Copy, Check, Download } from "lucide-react";
+import { toast } from "sonner";
 
 interface CompletionProps {
     orderCode: string;
@@ -9,6 +11,97 @@ interface CompletionProps {
 }
 
 export function Completion({ orderCode, mobileNumber, totalCost }: CompletionProps) {
+    const [copied, setCopied] = useState(false);
+    const hasDownloaded = useRef(false);
+
+    const generateReceiptPDF = useCallback(async (isAuto = false) => {
+        // Prevent double auto-download in Strict Mode
+        if (isAuto && hasDownloaded.current) return;
+        if (isAuto) hasDownloaded.current = true;
+
+        const { PDFDocument, rgb, StandardFonts } = await import("pdf-lib");
+
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage([350, 500]);
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+        });
+        const timeStr = now.toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+        });
+
+        const w = page.getWidth();
+        const black = rgb(0, 0, 0);
+        const gray = rgb(0.45, 0.45, 0.45);
+
+        // Title
+        page.drawText("PrintEG", { x: 30, y: 460, size: 22, font: fontBold, color: black });
+
+        page.drawLine({ start: { x: 30, y: 420 }, end: { x: w - 30, y: 420 }, thickness: 1, color: rgb(0.85, 0.85, 0.85) });
+
+        // Order Code - VERY BIG & CENTERED
+        const orderLabel = "ORDER CODE";
+        const labelWidth = fontBold.widthOfTextAtSize(orderLabel, 14);
+        page.drawText(orderLabel, { x: (w - labelWidth) / 2, y: 390, size: 14, font: fontBold, color: gray });
+
+        const codeWidth = fontBold.widthOfTextAtSize(orderCode, 80);
+        page.drawText(orderCode, { x: (w - codeWidth) / 2, y: 300, size: 80, font: fontBold, color: black });
+
+        // Details
+        let y = 250;
+        const dateText = `Date: ${dateStr}`;
+        const dateWidth = font.widthOfTextAtSize(dateText, 12);
+        page.drawText(dateText, { x: (w - dateWidth) / 2, y, size: 12, font, color: black });
+
+        y -= 20;
+        const detailsText = `Time: ${timeStr} | Rs. ${totalCost.toFixed(2)}`;
+        const detailsWidth = font.widthOfTextAtSize(detailsText, 12);
+        page.drawText(detailsText, { x: (w - detailsWidth) / 2, y, size: 12, font, color: black });
+
+        // Divider
+        page.drawLine({ start: { x: 30, y: y - 20 }, end: { x: w - 30, y: y - 20 }, thickness: 1, color: rgb(0.85, 0.85, 0.85) });
+
+        // Footer
+        const footerText = "Show this code at the counter to collect your prints.";
+        const footerWidth = font.widthOfTextAtSize(footerText, 10);
+        page.drawText(footerText, { x: (w - footerWidth) / 2, y: y - 45, size: 10, font, color: gray });
+
+        const pdfBytes = await pdfDoc.save();
+        const blob = new Blob([pdfBytes as any], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `PrintEG_Receipt_${orderCode}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    }, [orderCode, mobileNumber, totalCost]);
+
+    // Auto-download receipt on mount
+    useEffect(() => {
+        generateReceiptPDF(true);
+    }, [generateReceiptPDF]);
+
+    const handleCopyCode = async () => {
+        try {
+            await navigator.clipboard.writeText(orderCode);
+            setCopied(true);
+            toast.success("Order code copied!");
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            toast.error("Failed to copy code.");
+        }
+    };
+
     return (
         <div className="space-y-8 py-8 animate-in fade-in zoom-in-95 duration-500">
             {/* Success Animation */}
@@ -19,16 +112,32 @@ export function Completion({ orderCode, mobileNumber, totalCost }: CompletionPro
                 <h2 className="text-2xl font-bold tracking-tight">Order Placed!</h2>
             </div>
 
-            {/* Order Code - HUGE */}
+            {/* Order Code - Clickable to copy */}
             <div className="space-y-4">
-                <div className="bg-gray-50 rounded-3xl p-10 border-2 border-dashed border-gray-300 text-center relative overflow-hidden group hover:border-black transition-colors">
+                <div
+                    onClick={handleCopyCode}
+                    className="bg-gray-50 rounded-3xl p-10 border-2 border-dashed border-gray-300 text-center relative overflow-hidden group hover:border-black transition-colors cursor-pointer active:scale-[0.98]"
+                >
                     <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Order Code</p>
                     <p className="text-7xl font-bold tracking-tight text-gray-900 group-hover:scale-110 transition-transform duration-300">
                         {orderCode}
                     </p>
+                    <div className="mt-4 flex items-center justify-center gap-1.5 text-sm font-medium text-gray-400">
+                        {copied ? (
+                            <>
+                                <Check className="h-4 w-4 text-green-500" />
+                                <span className="text-green-500">Copied!</span>
+                            </>
+                        ) : (
+                            <>
+                                <Copy className="h-4 w-4" />
+                                <span>Tap to copy</span>
+                            </>
+                        )}
+                    </div>
                 </div>
                 <p className="text-center text-sm text-gray-500 px-8">
-                    Please show this code at the counter to collect your prints.
+                    Show this code at the counter to collect your prints.
                 </p>
             </div>
 
@@ -45,8 +154,15 @@ export function Completion({ orderCode, mobileNumber, totalCost }: CompletionPro
                 </div>
             </div>
 
-            {/* Done Button */}
-            <div className="pt-4">
+            {/* Action Buttons */}
+            <div className="space-y-3 pt-4">
+                <button
+                    onClick={() => generateReceiptPDF(false)}
+                    className="w-full h-12 rounded-2xl border-2 border-gray-200 bg-white text-gray-700 font-bold hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2"
+                >
+                    <Download className="h-4 w-4" />
+                    Download Receipt
+                </button>
                 <button
                     onClick={() => window.location.reload()}
                     className="w-full h-14 rounded-2xl bg-gray-900 text-white font-bold hover:bg-black transition-colors"

@@ -9,50 +9,56 @@ export default function Refund() {
                     <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shadow-lg shadow-black/20">
                         <span className="text-white font-bold text-2xl tracking-tighter">P</span>
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight">Refund Policy</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">Refund & Cancellation Policy</h1>
                 </div>
 
-                <div className="bg-gray-50 rounded-2xl p-8 space-y-6 border border-gray-100 text-sm text-gray-700">
-                    <p>Last updated: {new Date().toLocaleDateString()}</p>
+                <div className="bg-gray-50 rounded-2xl p-8 space-y-6 border border-gray-100 text-sm text-gray-700 leading-relaxed">
+                    <p>Last updated: March 07, 2026</p>
 
-                    <section className="space-y-2">
-                        <h2 className="text-lg font-bold text-black">1. Cancellations</h2>
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">1. Cancellation Policy</h2>
                         <p>
-                            Due to the custom nature of printing, orders can only be cancelled within 15 minutes of placing the order or before the status changes to "Processing", whichever is earlier. To cancel, please contact our support team immediately.
-                        </p>
-                    </section>
-
-                    <section className="space-y-2">
-                        <h2 className="text-lg font-bold text-black">2. Refunds</h2>
-                        <p>
-                            We offer refunds in the following cases:
+                            Due to the customized nature of printing services, orders can only be cancelled before they enter the "Processing" stage.
                         </p>
                         <ul className="list-disc pl-5 space-y-1">
-                            <li>Double payment for the same order.</li>
-                            <li>Order cancelled successfully within the allowed window.</li>
-                            <li>Major defects in printing (e.g., blank pages, severe damage) verifiable by photo evidence.</li>
-                        </ul>
-                        <p className="mt-2">
-                            We do not strictly offer refunds for user errors such as:
-                        </p>
-                        <ul className="list-disc pl-5 space-y-1">
-                            <li>Uploading the wrong file.</li>
-                            <li>Low-resolution images in the source file.</li>
-                            <li>Spelling errors in your document.</li>
+                            <li>Cancellations requested within 15 minutes of order placement are typically accepted.</li>
+                            <li>Once the printing process has started, the order cannot be cancelled or modified.</li>
                         </ul>
                     </section>
 
-                    <section className="space-y-2">
-                        <h2 className="text-lg font-bold text-black">3. Processing Refunds</h2>
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">2. Refund Eligibility</h2>
                         <p>
-                            Approved refunds will be processed within 5-7 business days and credited back to the original payment method.
+                            Refunds are processed only under the following specific circumstances:
+                        </p>
+                        <ul className="list-disc pl-5 space-y-1">
+                            <li><strong>Printing Defects:</strong> If the physical print has significant manufacturing defects (e.g., blank pages, incorrect paper size) that were not present in the source file.</li>
+                            <li><strong>Double Payment:</strong> If multiple payments were deducted for a single order due to a technical glitch.</li>
+                            <li><strong>Non-fulfillment:</strong> If we are unable to fulfill your order for any operational reason.</li>
+                        </ul>
+                    </section>
+
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">3. Non-Refundable Items</h2>
+                        <ul className="list-disc pl-5 space-y-1">
+                            <li>User errors (e.g., spelling mistakes, low-resolution uploads, incorrect color settings selected by the user).</li>
+                            <li>Orders that have already been collected or dispatched.</li>
+                            <li>AI-generated document fees once the generation is complete.</li>
+                        </ul>
+                    </section>
+
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">4. Refund Process</h2>
+                        <p>
+                            To request a refund, please email us with your Order ID and photographic evidence of the defect (if applicable). Approved refunds will be initiated within 5-7 business days and credited to the original payment method used during the transaction.
                         </p>
                     </section>
 
-                    <section className="space-y-2">
-                        <h2 className="text-lg font-bold text-black">4. Contact Us</h2>
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-bold text-black">5. Contact Us</h2>
                         <p>
-                            For refund requests, please email us at <a href="mailto:printeg.mailbox@gmail.com" className="text-blue-600 hover:underline">printeg.mailbox@gmail.com</a> with your Order ID and details of the issue.
+                            For cancellation or refund requests, please contact us at:<br />
+                            <strong>Email:</strong> <a href="mailto:printeg.workspace@gmail.com" className="text-blue-600 hover:underline">printeg.workspace@gmail.com</a>
                         </p>
                     </section>
                 </div>
