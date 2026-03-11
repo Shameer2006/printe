@@ -209,7 +209,7 @@ export function AIDocumentGenerator({ onProceed }: AIDocumentGeneratorProps) {
             setGeneratedPdfUrl(url);
             setGeneratedBlob(blob);
 
-            toast.success('Document generated! Download it below.');
+            toast.success('Document generated! Preview it below.');
         } catch (error: any) {
             console.error('Error generating PDF:', error);
             toast.error(error.message || 'Error generating PDF.');
@@ -218,16 +218,6 @@ export function AIDocumentGenerator({ onProceed }: AIDocumentGeneratorProps) {
         }
     };
 
-    const handleDownload = () => {
-        if (!generatedPdfUrl) return;
-        const a = document.createElement('a');
-        a.href = generatedPdfUrl;
-        const suffix = docType.replace('_', ' ');
-        a.download = `${getCurrentName().replace(/\s+/g, '_')}_${suffix}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-    };
 
     return (
         <div className="space-y-6">
@@ -530,23 +520,14 @@ export function AIDocumentGenerator({ onProceed }: AIDocumentGeneratorProps) {
             {/* Result */}
             {generatedPdfUrl && (
                 <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <div className="flex gap-3">
-                        <Button
-                            onClick={handleDownload}
-                            className="flex-1 h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold"
-                        >
-                            <Download className="h-4 w-4 mr-2" />
-                            Download
-                        </Button>
-                        <Button
-                            onClick={() => window.open(generatedPdfUrl, '_blank')}
-                            variant="outline"
-                            className="flex-1 h-12 rounded-xl border-gray-200 hover:bg-gray-50 font-bold"
-                        >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Preview
-                        </Button>
-                    </div>
+                    <Button
+                        onClick={() => window.open(generatedPdfUrl, '_blank')}
+                        variant="outline"
+                        className="w-full h-12 rounded-xl border-gray-200 hover:bg-gray-50 font-bold"
+                    >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Preview Document
+                    </Button>
 
                     {onProceed && (
                         <Button

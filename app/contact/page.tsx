@@ -20,7 +20,7 @@ export default function Contact() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-2">
                             <h3 className="font-bold text-gray-900 uppercase text-xs tracking-widest">Merchant Name</h3>
-                            <p className="text-gray-700 font-medium">Printeg Operations</p>
+                            <p className="text-gray-700 font-medium">Ramsee Ventures</p>
                         </div>
 
                         <div className="space-y-2">

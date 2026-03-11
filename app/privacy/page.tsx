@@ -18,7 +18,7 @@ export default function Privacy() {
                     <section className="space-y-3">
                         <h2 className="text-lg font-bold text-black">1. Overiview</h2>
                         <p>
-                            Printeg ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our printing services.
+                            Printeg, a product of Ramsee Ventures ("we," "us," or "our"), is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our printing services.
                         </p>
                     </section>
 
@@ -28,7 +28,7 @@ export default function Privacy() {
                         <ul className="list-disc pl-5 space-y-1">
                             <li><strong>Personal Information:</strong> Mobile number, which is used for order identification and communication.</li>
                             <li><strong>Order Content:</strong> PDF documents and images you upload for printing. These are temporarily stored and used solely to fulfill your print request.</li>
-                            <li><strong>Payment Information:</strong> We do not store your credit card or bank details. All payments are processed through secure third-party payment gateways (like PhonePe or Razorpay).</li>
+                            <li><strong>Payment Information:</strong> We do not store your credit card or bank details. Our payment gateway is approved by Zoho Pay for this website, and all payments are processed securely through it.</li>
                         </ul>
                     </section>
 

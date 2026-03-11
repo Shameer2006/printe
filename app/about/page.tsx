@@ -14,11 +14,11 @@ export default function About() {
 
                 <div className="bg-gray-50 rounded-2xl p-8 space-y-6 border border-gray-100 text-base text-gray-700 leading-relaxed">
                     <p>
-                        Welcome to <strong>Printeg</strong>, India's emerging solution for fast, reliable, and high-quality online printing services. We are dedicated to simplifying the document printing experience for students, professionals, and businesses.
+                        Welcome to <strong>Printeg</strong>, a product of <strong>Ramsee Ventures</strong>, India's emerging solution for fast, reliable, and high-quality online printing services. We are dedicated to simplifying the document printing experience for students, professionals, and businesses.
                     </p>
 
                     <p>
-                        At Printeg, we leverage technology to bridge the gap between digital documents and physical prints. Our platform allows you to upload, configure, and pay for your prints seamlessly, ensuring you spend less time in queues and more time on what matters.
+                        At Printeg, we leverage technology to bridge the gap between digital documents and physical prints. Our platform allows you to upload, configure, and pay for your prints seamlessly through our <strong>Zoho Pay approved payment gateway</strong>, ensuring you spend less time in queues and more time on what matters.
                     </p>
 
                     <h2 className="text-xl font-bold text-black mt-4">Our Values</h2>
