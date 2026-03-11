@@ -18,11 +18,12 @@ import heroImage1 from "./image1.png";
 import heroImage from "./image.png";
 
 type Step = "upload" | "config" | "payment" | "complete";
-type Mode = "upload" | "ai-doc";
+type Mode = "upload" | "ai-doc" | "a4-sheet";
 
 export default function Home() {
   const [step, setStep] = useState<Step>("upload");
   const [mode, setMode] = useState<Mode>("upload");
+  const [a4Sheets, setA4Sheets] = useState(1);
   const [files, setFiles] = useState<File[]>([]);
   const [totalPages, setTotalPages] = useState(0);
   const [printSide, setPrintSide] = useState<"single" | "double">("single");
@@ -242,6 +243,66 @@ export default function Home() {
     }
   };
 
+  const handleA4Payment = async () => {
+    if (mobileNumber.length !== 10) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+    if (a4Sheets < 1) {
+      toast.error("Please enter a valid number of sheets");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const code = generateOrderCode();
+      setOrderCode(code);
+      const a4TotalCost = a4Sheets * 1;
+
+      console.log("Saving A4 order to database...");
+      const writePromise = setDoc(doc(db, "orders", code), {
+        orderCode: code,
+        mobileNumber,
+        totalPages: a4Sheets,
+        copies: 1,
+        isColor: false,
+        printSide: "single",
+        printLayout: "1-in-1",
+        amount: a4TotalCost,
+        fileUrl: "EMPTY_A4_SHEET",
+        isA4SheetsOnly: true,
+        payment_status: "PENDING",
+        createdAt: new Date().toISOString(),
+        status: "pending",
+      });
+
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 30000));
+      await Promise.race([writePromise, timeoutPromise]);
+
+      const response = await fetch("/api/phonepe/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderCode: code,
+          amount: a4TotalCost,
+          mobileNumber,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      } else {
+        toast.error(data.error || "Payment gateway error.");
+        setIsProcessing(false);
+      }
+    } catch (error) {
+      toast.error("Failed to process order.");
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-transparent text-black flex flex-col relative">
       <div className="flex-1 flex flex-col justify-center items-center py-12 px-2">
@@ -285,14 +346,86 @@ export default function Home() {
                       >
                         ✨ AI Generator
                       </button>
+                      <button
+                        onClick={() => setMode("a4-sheet")}
+                        className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${mode === "a4-sheet"
+                          ? "bg-white text-black shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
+                          }`}
+                      >
+                        📝 A4 Blank Sheets
+                      </button>
                     </div>
                   </div>
 
                   {/* Content based on mode */}
-                  {mode === "upload" ? (
+                  {mode === "upload" && (
                     <FileUpload onFilesChange={handleFilesChange} onContinue={handleContinue} totalPages={totalPages} />
-                  ) : (
+                  )}
+                  {mode === "ai-doc" && (
                     <AIDocumentGenerator onProceed={handleAIProceed} />
+                  )}
+                  {mode === "a4-sheet" && (
+                    <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-gray-700">Number of A4 Sheets (₹1 per sheet)</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={a4Sheets || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === '') {
+                                setA4Sheets(0); // Temporarily allow empty as 0
+                              } else {
+                                setA4Sheets(parseInt(val) || 1);
+                              }
+                            }}
+                            onBlur={() => {
+                              if (a4Sheets < 1) setA4Sheets(1); // Enforce minimum 1 on blur
+                            }}
+                            className="w-full h-12 rounded-xl bg-white border border-gray-200 px-4 focus:ring-black focus:border-black outline-none transition-all"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold text-gray-700">Mobile Number *</label>
+                          <div className="flex bg-white rounded-xl border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-black focus-within:border-black transition-all">
+                            <div className="flex items-center justify-center px-4 bg-gray-50 border-r border-gray-200 text-gray-500 font-medium">
+                              +91
+                            </div>
+                            <input
+                              type="tel"
+                              maxLength={10}
+                              value={mobileNumber}
+                              onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ''))}
+                              placeholder="10-digit mobile number"
+                              className="w-full h-12 bg-transparent px-4 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <Button
+                          onClick={handleA4Payment}
+                          disabled={mobileNumber.length !== 10 || isProcessing || a4Sheets < 1}
+                          className="w-full h-14 text-lg font-bold rounded-2xl bg-black hover:bg-gray-800 text-white shadow-lg active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                          {isProcessing ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                              Processing...
+                            </span>
+                          ) : (
+                            `Pay ₹${a4Sheets * 1}`
+                          )}
+                        </Button>
+                        <p className="text-xs text-center text-gray-500 font-medium">
+                          Note: You are purchasing plain, unprinted A4 sheets.
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
