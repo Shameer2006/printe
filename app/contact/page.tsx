@@ -14,7 +14,7 @@ export default function Contact() {
 
                 <div className="bg-gray-50 rounded-2xl p-8 space-y-8 border border-gray-100">
                     <p className="text-gray-600 leading-relaxed">
-                        We are here to help! If you have any questions, concerns, or feedback regarding your print orders or our services, please reach out to us.
+                        We are here to help! If you have any questions, concerns, or feedback regarding your A4 sheet dispensing, print orders or our services, please reach out to us.
                     </p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

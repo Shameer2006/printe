@@ -18,11 +18,11 @@ export default function Refund() {
                     <section className="space-y-3">
                         <h2 className="text-lg font-bold text-black">1. Cancellation Policy</h2>
                         <p>
-                            Due to the customized nature of printing services, orders can only be cancelled before they enter the "Processing" stage.
+                            Due to the customized nature of printing and the automated nature of A4 sheet dispensing, orders can only be cancelled before they enter the "Processing" or "Dispensing" stage.
                         </p>
                         <ul className="list-disc pl-5 space-y-1">
-                            <li>Cancellations requested within 15 minutes of order placement are typically accepted.</li>
-                            <li>Once the printing process has started, the order cannot be cancelled or modified.</li>
+                            <li>Cancellations requested within 15 minutes of order placement are typically accepted for printing.</li>
+                            <li>Once the printing process has started or A4 sheets have been dispensed, the order cannot be cancelled or modified.</li>
                         </ul>
                     </section>
 
@@ -32,17 +32,17 @@ export default function Refund() {
                             Refunds are processed only under the following specific circumstances:
                         </p>
                         <ul className="list-disc pl-5 space-y-1">
-                            <li><strong>Printing Defects:</strong> If the physical print has significant manufacturing defects (e.g., blank pages, incorrect paper size) that were not present in the source file.</li>
+                            <li><strong>Defects:</strong> If the physical print has significant manufacturing defects (e.g., blank pages, incorrect paper size) or if A4 sheets are damaged during dispensing.</li>
                             <li><strong>Double Payment:</strong> If multiple payments were deducted for a single order due to a technical glitch.</li>
-                            <li><strong>Non-fulfillment:</strong> If we are unable to fulfill your order for any operational reason.</li>
+                            <li><strong>Non-fulfillment:</strong> If we are unable to fulfill your order or dispense sheets for any operational reason.</li>
                         </ul>
                     </section>
 
                     <section className="space-y-3">
                         <h2 className="text-lg font-bold text-black">3. Non-Refundable Items</h2>
                         <ul className="list-disc pl-5 space-y-1">
-                            <li>User errors (e.g., spelling mistakes, low-resolution uploads, incorrect color settings selected by the user).</li>
-                            <li>Orders that have already been collected or dispatched.</li>
+                            <li>User errors (e.g., spelling mistakes in AI documents, incorrect quantity of A4 sheets selected).</li>
+                            <li>Orders that have already been collected, dispatched, or dispensed from the machine.</li>
                             <li>AI-generated document fees once the generation is complete.</li>
                         </ul>
                     </section>

@@ -16,9 +16,9 @@ export default function Privacy() {
                     <p>Last updated: March 07, 2026</p>
 
                     <section className="space-y-3">
-                        <h2 className="text-lg font-bold text-black">1. Overiview</h2>
+                        <h2 className="text-lg font-bold text-black">1. Overview</h2>
                         <p>
-                            Printeg, a product of Ramsee Ventures ("we," "us," or "our"), is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our printing services.
+                            Printeg, a product of Ramsee Ventures ("we," "us," or "our"), is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our A4 sheet dispenser and printing services.
                         </p>
                     </section>
 
@@ -27,8 +27,13 @@ export default function Privacy() {
                         <p>We collect information that you provide directly to us when you use our services:</p>
                         <ul className="list-disc pl-5 space-y-1">
                             <li><strong>Personal Information:</strong> Mobile number, which is used for order identification and communication.</li>
-                            <li><strong>Order Content:</strong> PDF documents and images you upload for printing. These are temporarily stored and used solely to fulfill your print request.</li>
-                            <li><strong>Payment Information:</strong> We do not store your credit card or bank details. Our payment gateway is approved by Zoho Pay for this website, and all payments are processed securely through it.</li>
+                            <li><strong>Order Content:</strong>
+                                <ul className="list-circle pl-5 mt-1 space-y-1">
+                                    <li>For printing services: PDF documents and images you upload. These are temporarily stored and used solely to fulfill your print request.</li>
+                                    <li>For A4 sheet dispensing: No document content is collected or stored. We only record the number of sheets purchased.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Payment Information:</strong> We do not store your credit card or bank details. Our payment gateway is approved by Zoho Pay for this website (processed via Razorpay), and all payments are processed securely through it.</li>
                         </ul>
                     </section>
 
