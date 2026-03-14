@@ -14,15 +14,22 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import Script from "next/script";
 import heroImage1 from "./image1.png";
 import heroImage from "./image.png";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 type Step = "upload" | "config" | "payment" | "complete";
 type Mode = "upload" | "ai-doc" | "a4-sheet";
 
 export default function Home() {
   const [step, setStep] = useState<Step>("upload");
-  const [mode, setMode] = useState<Mode>("upload");
+  const [mode, setMode] = useState<Mode>("a4-sheet");
   const [a4Sheets, setA4Sheets] = useState(1);
   const [files, setFiles] = useState<File[]>([]);
   const [totalPages, setTotalPages] = useState(0);
@@ -35,25 +42,73 @@ export default function Home() {
   const [isAIDoc, setIsAIDoc] = useState(false);
   const [copies, setCopies] = useState(1);
 
-  // Handle return from PhonePe Payment Gateway
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const returnStep = params.get("step");
-      const returnOrderCode = params.get("orderCode");
-      const returnError = params.get("error");
+  // Razorpay checkout helper
+  const openRazorpayCheckout = async (code: string, amount: number, mobile: string) => {
+    // 1. Create Razorpay order on server
+    const response = await fetch("/api/razorpay/create-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderCode: code,
+        amount,
+        mobileNumber: mobile,
+      }),
+    });
 
-      if (returnStep === "complete" && returnOrderCode) {
-        setStep("complete");
-        setOrderCode(returnOrderCode);
-        // Clear the URL to avoid repeating on refresh
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } else if (returnError) {
-        toast.error(returnError);
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
+    const data = await response.json();
+    if (!data.orderId) {
+      throw new Error(data.error || "Failed to create payment order");
     }
-  }, []);
+
+    // 2. Open Razorpay popup
+    return new Promise<void>((resolve, reject) => {
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: data.amount,
+        currency: data.currency,
+        name: "PrintEG",
+        description: `Order ${code}`,
+        order_id: data.orderId,
+        handler: async (response: any) => {
+          try {
+            // 3. Verify payment on server
+            const verifyRes = await fetch("/api/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderCode: code,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyData.success) {
+              resolve();
+            } else {
+              reject(new Error("Payment verification failed"));
+            }
+          } catch (err) {
+            reject(err);
+          }
+        },
+        prefill: {
+          contact: mobile,
+        },
+        theme: {
+          color: "#000000",
+        },
+        modal: {
+          ondismiss: () => {
+            reject(new Error("Payment cancelled"));
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    });
+  };
 
   // Background upload ref to store the running upload promise
   const uploadPromiseRef = useRef<Promise<string> | null>(null);
@@ -155,7 +210,6 @@ export default function Home() {
 
     setIsProcessing(true);
 
-
     try {
       // 1. Ensure file upload is complete (or wait for it)
       if (!uploadPromiseRef.current) {
@@ -166,79 +220,48 @@ export default function Home() {
 
       let fileUrl: string;
       try {
-        // Use the existing promise - if it's already done, this resolves instantly
-        // If it's still running, we wait here
         fileUrl = await uploadPromiseRef.current;
       } catch (uploadError) {
-
         toast.error("Failed to upload file. Please try again.");
         setIsProcessing(false);
         return;
       }
 
       // 2. Save order to Firestore
-      console.log("Saving order to database...");
-
       if (!orderCode) {
         throw new Error("Invalid order session. Please refresh and try again.");
       }
 
-      let orderDocId: string | null = null;
-
-      try {
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Firestore write timeout after 30 seconds. Check your connection.')), 30000);
-        });
-
-        const writePromise = setDoc(doc(db, "orders", orderCode), {
-          orderCode, // Use the state set in handleContinue
-          mobileNumber,
-          totalPages,
-          copies,
-          isColor,
-          printSide,
-          printLayout,
-          amount: totalCost,
-          fileUrl,
-          payment_status: "PENDING",
-          createdAt: new Date().toISOString(),
-          status: "pending",
-        });
-
-        await Promise.race([writePromise, timeoutPromise]);
-        orderDocId = orderCode;
-      } catch (firestoreError: any) {
-        console.error("Firestore Write Error Detail:", firestoreError);
-        // Throw to the outer catch for UI toast
-        throw firestoreError;
-      }
-
-      // 3. Initiate PhonePe Payment
-      const response = await fetch("/api/phonepe/pay", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          orderCode: orderDocId, // Use the generated order document ID
-          amount: totalCost,
-          mobileNumber,
-        }),
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Firestore write timeout after 30 seconds.')), 30000);
       });
 
-      const data = await response.json();
+      const writePromise = setDoc(doc(db, "orders", orderCode), {
+        orderCode,
+        mobileNumber,
+        totalPages,
+        copies,
+        isColor,
+        printSide,
+        printLayout,
+        amount: totalCost,
+        fileUrl,
+        payment_status: "PENDING",
+        createdAt: new Date().toISOString(),
+        status: "pending",
+      });
 
-      if (data.redirectUrl) {
-        // Redirect the user to PhonePe's secure checkout page
-        window.location.href = data.redirectUrl;
-      } else {
-        console.error("Payment initiation failed:", data);
-        toast.error(data.error || "Payment gateway error. Please try again.");
-        setIsProcessing(false);
+      await Promise.race([writePromise, timeoutPromise]);
+
+      // 3. Open Razorpay Checkout
+      await openRazorpayCheckout(orderCode, totalCost, mobileNumber);
+
+      // 4. Payment successful
+      setStep("complete");
+    } catch (error: any) {
+      if (error.message !== "Payment cancelled") {
+        toast.error("Failed to process order. Please try again.");
       }
-    } catch (error) {
-
-      toast.error("Failed to process order. Please try again.");
       setIsProcessing(false);
     }
   };
@@ -260,7 +283,6 @@ export default function Home() {
       setOrderCode(code);
       const a4TotalCost = a4Sheets * 1;
 
-      console.log("Saving A4 order to database...");
       const writePromise = setDoc(doc(db, "orders", code), {
         orderCode: code,
         mobileNumber,
@@ -280,31 +302,22 @@ export default function Home() {
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 30000));
       await Promise.race([writePromise, timeoutPromise]);
 
-      const response = await fetch("/api/phonepe/pay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderCode: code,
-          amount: a4TotalCost,
-          mobileNumber,
-        }),
-      });
+      // Open Razorpay Checkout
+      await openRazorpayCheckout(code, a4TotalCost, mobileNumber);
 
-      const data = await response.json();
-      if (data.redirectUrl) {
-        window.location.href = data.redirectUrl;
-      } else {
-        toast.error(data.error || "Payment gateway error.");
-        setIsProcessing(false);
+      // Payment successful
+      setStep("complete");
+    } catch (error: any) {
+      if (error.message !== "Payment cancelled") {
+        toast.error("Failed to process order.");
       }
-    } catch (error) {
-      toast.error("Failed to process order.");
       setIsProcessing(false);
     }
   };
 
   return (
     <main className="min-h-screen bg-transparent text-black flex flex-col relative">
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       <div className="flex-1 flex flex-col justify-center items-center py-12 px-2">
         <div className={`w-full transition-all duration-500 ${step === 'upload' ? 'max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-0 items-center' : 'max-w-[400px]'}`}>
 
@@ -328,7 +341,7 @@ export default function Home() {
                   {/* Mode Toggle */}
                   <div className="flex items-center justify-center">
                     <div className="inline-flex bg-gray-100 rounded-2xl p-1 gap-1">
-                      <button
+                      {/* <button
                         onClick={() => setMode("upload")}
                         className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${mode === "upload"
                           ? "bg-white text-black shadow-sm"
@@ -336,7 +349,7 @@ export default function Home() {
                           }`}
                       >
                         📄 Upload PDF
-                      </button>
+                      </button> */}
                       <button
                         onClick={() => setMode("ai-doc")}
                         className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${mode === "ai-doc"
@@ -359,9 +372,9 @@ export default function Home() {
                   </div>
 
                   {/* Content based on mode */}
-                  {mode === "upload" && (
+                  {/* {mode === "upload" && (
                     <FileUpload onFilesChange={handleFilesChange} onContinue={handleContinue} totalPages={totalPages} />
-                  )}
+                  )} */}
                   {mode === "ai-doc" && (
                     <AIDocumentGenerator onProceed={handleAIProceed} />
                   )}
@@ -480,10 +493,10 @@ export default function Home() {
               <div className="bg-gray-50 p-6 rounded-2xl w-full max-w-md space-y-4 border border-gray-100">
                 <h3 className="font-semibold text-lg">How it works</h3>
                 <ol className="space-y-4 text-gray-600">
-                  <li className="flex gap-4 items-start">
+                  {/* <li className="flex gap-4 items-start">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-sm font-bold mt-0.5">1</span>
                     <span>Upload your PDF documents</span>
-                  </li>
+                  </li> */}
                   <li className="flex gap-4 items-start">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-sm font-bold mt-0.5">2</span>
                     <span>Configure print settings (B&W/Color)</span>
