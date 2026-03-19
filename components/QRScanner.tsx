@@ -38,24 +38,40 @@ export function QRScanner({ onClose }: QRScannerProps) {
           qrbox: { width: 250, height: 250 },
         },
         (decodedText) => {
-          // Check if it's a valid printeg store URL
-          try {
-            const url = new URL(decodedText);
-            const storeMatch = url.pathname.match(/^\/store\/([a-z0-9-]+)\/?$/);
-            if (storeMatch) {
-              safeStop();
-              window.location.href = `/store/${storeMatch[1]}`;
-            } else if (url.hostname.includes("printeg")) {
+          console.log("QR decoded:", decodedText);
+
+          // Try to extract a /store/slug from the decoded text
+          const storeMatch = decodedText.match(/\/store\/([a-zA-Z0-9_-]+)/);
+          if (storeMatch) {
+            safeStop();
+            window.location.href = `/store/${storeMatch[1]}`;
+            return;
+          }
+
+          // If the URL contains "printeg", redirect to its path
+          if (decodedText.includes("printeg")) {
+            try {
+              const url = new URL(decodedText);
               safeStop();
               window.location.href = url.pathname;
-            } else {
-              setError("This QR code is not a valid PrintEG store. Please scan a PrintEG vendor QR code.");
-              setTimeout(() => setError(""), 3000);
+              return;
+            } catch {
+              // not a valid URL, continue
             }
-          } catch {
-            setError("Invalid QR code. Please scan a PrintEG vendor QR code.");
-            setTimeout(() => setError(""), 3000);
           }
+
+          // If it's a plain URL, just navigate to it
+          try {
+            const url = new URL(decodedText);
+            safeStop();
+            window.location.href = url.href;
+            return;
+          } catch {
+            // not a URL
+          }
+
+          setError("Could not find a store link in this QR code.");
+          setTimeout(() => setError(""), 3000);
         },
         () => {
           // Ignore scan failures (no QR found in frame)
