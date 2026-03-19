@@ -74,9 +74,9 @@ async function seedVendors() {
   }
 
   console.log("\n🎉 Done! Test these URLs:");
-  console.log("   http://localhost:3000/store/ramsee-xerox");
-  console.log("   http://localhost:3000/store/campus-prints");
-  console.log("   http://localhost:3000/store/quick-copy-center\n");
+  console.log("   https://printeg.in/store/ramsee-xerox");
+  console.log("   https://printeg.in/store/campus-prints");
+  console.log("   https://printeg.in/store/quick-copy-center\n");
   process.exit(0);
 }
 
