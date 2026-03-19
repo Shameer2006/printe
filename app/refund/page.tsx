@@ -50,7 +50,7 @@ export default function Refund() {
                     <section className="space-y-3">
                         <h2 className="text-lg font-bold text-black">4. Refund Process</h2>
                         <p>
-                            To request a refund, please email us with your Order ID and photographic evidence of the defect (if applicable). Approved refunds will be initiated within 5-7 business days and credited to the original payment method used during the transaction.
+                            To request a refund, please email us with your Order ID and photographic evidence of the defect (if applicable). Approved refunds will be initiated within 5-7 business days and credited to the original payment method used during the transaction. This platform's payment is secured by Zoho Pay.
                         </p>
                     </section>
 

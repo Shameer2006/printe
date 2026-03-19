@@ -13,6 +13,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.8.0",
+    "html5-qrcode": "^2.3.8",
     "jszip": "^3.10.1",
     "lucide-react": "^0.563.0",
     "mammoth": "^1.11.0",

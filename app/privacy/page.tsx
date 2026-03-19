@@ -33,7 +33,7 @@ export default function Privacy() {
                                     <li>For A4 sheet dispensing: No document content is collected or stored. We only record the number of sheets purchased.</li>
                                 </ul>
                             </li>
-                            <li><strong>Payment Information:</strong> We do not store your credit card or bank details. Our payment gateway is approved by Zoho Pay for this website (processed via Razorpay), and all payments are processed securely through it.</li>
+                            <li><strong>Payment Information:</strong> We do not store your credit card or bank details. This platform's payment is secured by Zoho Pay.</li>
                         </ul>
                     </section>
 
