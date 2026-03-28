@@ -19,11 +19,12 @@ import Script from "next/script";
 import heroImage from "../app/image.png";
 import { useVendor } from "@/lib/vendor-context";
 
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
+// --- Razorpay (commented out — kept for reference) ---
+// declare global {
+//   interface Window {
+//     Razorpay: any;
+//   }
+// }
 
 type Step = "upload" | "config" | "payment" | "complete";
 type Mode = "upload" | "ai-doc" | "a4-sheet";
@@ -46,9 +47,63 @@ export default function PrintApp() {
   const [copies, setCopies] = useState(1);
   const [showQRScanner, setShowQRScanner] = useState(false);
 
-  // Razorpay checkout helper
-  const openRazorpayCheckout = async (code: string, amount: number, mobile: string) => {
-    const response = await fetch("/api/razorpay/create-order", {
+  // --- Razorpay checkout helper (commented out — kept for reference) ---
+  // const openRazorpayCheckout = async (code: string, amount: number, mobile: string) => {
+  //   const response = await fetch("/api/razorpay/create-order", {
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify({
+  //       orderCode: code,
+  //       amount,
+  //       mobileNumber: mobile,
+  //     }),
+  //   });
+  //   const data = await response.json();
+  //   if (!data.orderId) {
+  //     throw new Error(data.error || "Failed to create payment order");
+  //   }
+  //   return new Promise<void>((resolve, reject) => {
+  //     const options = {
+  //       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+  //       amount: data.amount,
+  //       currency: data.currency,
+  //       name: storeName,
+  //       description: `Order ${code}`,
+  //       order_id: data.orderId,
+  //       handler: async (response: any) => {
+  //         try {
+  //           const verifyRes = await fetch("/api/razorpay/verify", {
+  //             method: "POST",
+  //             headers: { "Content-Type": "application/json" },
+  //             body: JSON.stringify({
+  //               razorpay_order_id: response.razorpay_order_id,
+  //               razorpay_payment_id: response.razorpay_payment_id,
+  //               razorpay_signature: response.razorpay_signature,
+  //               orderCode: code,
+  //             }),
+  //           });
+  //           const verifyData = await verifyRes.json();
+  //           if (verifyData.success) {
+  //             resolve();
+  //           } else {
+  //             reject(new Error("Payment verification failed"));
+  //           }
+  //         } catch (err) {
+  //           reject(err);
+  //         }
+  //       },
+  //       prefill: { contact: mobile },
+  //       theme: { color: vendor?.themeColor || "#000000" },
+  //       modal: { ondismiss: () => reject(new Error("Payment cancelled")) },
+  //     };
+  //     const rzp = new window.Razorpay(options);
+  //     rzp.open();
+  //   });
+  // };
+
+  // Zoho Payments helper — creates a payment link and redirects user
+  const openZohoPayment = async (code: string, amount: number, mobile: string) => {
+    const response = await fetch("/api/zoho/create-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -59,56 +114,13 @@ export default function PrintApp() {
     });
 
     const data = await response.json();
-    if (!data.orderId) {
-      throw new Error(data.error || "Failed to create payment order");
+
+    if (!data.paymentUrl) {
+      throw new Error(data.error || "Failed to create payment link");
     }
 
-    return new Promise<void>((resolve, reject) => {
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: data.amount,
-        currency: data.currency,
-        name: storeName,
-        description: `Order ${code}`,
-        order_id: data.orderId,
-        handler: async (response: any) => {
-          try {
-            const verifyRes = await fetch("/api/razorpay/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                orderCode: code,
-              }),
-            });
-            const verifyData = await verifyRes.json();
-            if (verifyData.success) {
-              resolve();
-            } else {
-              reject(new Error("Payment verification failed"));
-            }
-          } catch (err) {
-            reject(err);
-          }
-        },
-        prefill: {
-          contact: mobile,
-        },
-        theme: {
-          color: vendor?.themeColor || "#000000",
-        },
-        modal: {
-          ondismiss: () => {
-            reject(new Error("Payment cancelled"));
-          },
-        },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    });
+    // Redirect user to Zoho's hosted payment page
+    window.location.href = data.paymentUrl;
   };
 
   // Background upload ref
@@ -255,9 +267,11 @@ export default function PrintApp() {
 
       await Promise.race([writePromise, timeoutPromise]);
 
-      await openRazorpayCheckout(orderCode, totalCost, mobileNumber);
+      // await openRazorpayCheckout(orderCode, totalCost, mobileNumber); // Razorpay (commented out)
+      await openZohoPayment(orderCode, totalCost, mobileNumber);
 
-      setStep("complete");
+      // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
+      // setStep("complete");
     } catch (error: any) {
       if (error.message !== "Payment cancelled") {
         toast.error("Failed to process order. Please try again.");
@@ -298,9 +312,11 @@ export default function PrintApp() {
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 30000));
       await Promise.race([writePromise, timeoutPromise]);
 
-      await openRazorpayCheckout(code, a4TotalCost, mobileNumber);
+      // await openRazorpayCheckout(code, a4TotalCost, mobileNumber); // Razorpay (commented out)
+      await openZohoPayment(code, a4TotalCost, mobileNumber);
 
-      setStep("complete");
+      // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
+      // setStep("complete");
     } catch (error: any) {
       if (error.message !== "Payment cancelled") {
         toast.error("Failed to process order.");
@@ -314,7 +330,7 @@ export default function PrintApp() {
 
   return (
     <main className="min-h-screen bg-transparent text-black flex flex-col relative">
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      {/* <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" /> */}{/* Razorpay script (commented out) */}
       {/* QR Scanner Modal */}
       {showQRScanner && <QRScanner onClose={() => setShowQRScanner(false)} />}
       <div className="flex-1 flex flex-col justify-center items-center py-12 px-2">
