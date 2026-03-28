@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getZohoApiKey } from "@/lib/zoho-auth";
+import { getZohoAccessToken } from "@/lib/zoho-auth";
 
 export async function POST(req: NextRequest) {
     try {
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Payment gateway not configured" }, { status: 500 });
         }
 
-        const apiKey = getZohoApiKey();
+        const accessToken = await getZohoAccessToken();
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
         const payload = {
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         const response = await fetch(url, {
             method: "POST",
             headers: {
-                "Authorization": `Zoho-oauthtoken ${apiKey}`,
+                "Authorization": `Zoho-oauthtoken ${accessToken}`,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(payload),
