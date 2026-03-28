@@ -37,7 +37,12 @@ export async function getZohoAccessToken(): Promise<string> {
 
     if (data.error) {
         console.error("Zoho token refresh failed:", data);
-        throw new Error(`Zoho token refresh failed: ${data.error}`);
+        throw new Error(`Zoho token refresh failed: ${data.error}. Generate a new refresh token from Zoho API Console.`);
+    }
+
+    if (!data.access_token) {
+        console.error("No access token in response:", data);
+        throw new Error("Failed to obtain access token from Zoho");
     }
 
     cachedToken = {

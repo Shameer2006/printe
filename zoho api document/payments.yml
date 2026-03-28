@@ -1,0 +1,610 @@
+openapi: 3.0.0
+info:
+  title: Payments
+  description: The Payment APIs provide details about a payment transaction, including amounts, currencies, and status.
+  contact: {}
+  version: 1.0.0
+servers:
+  - url: https://payments.zoho.in/api/v1
+    description: API Endpoint
+tags:
+  - name: payments
+    description: Payments Module
+paths:
+  /payments/{payment_id}:
+    get:
+      tags:
+        - payments
+      summary: Retrieve Payment Details
+      description: Used to retrieve details of a specific payment.<br/><br/><b>Note:</b> For recurring payments, the <b>mandate_id</b> will be returned in the response along with the payment details. To set up recurring payments, refer to the <a href="/in/payments/api/v1/mandates/">API Document for Mandates</a>.<br/>
+      parameters:
+        - name: payment_id
+          description: A unique ID for payments made through Zoho Payments.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 731000001449003
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payment-retrieve-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.READ
+  /payments:
+    get:
+      tags:
+        - payments
+      summary: Retrieve Payments List
+      description: Used to retrieve the details of all payments.
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/search_text'
+        - $ref: '#/components/parameters/filter_by'
+        - $ref: '#/components/parameters/from_date'
+        - $ref: '#/components/parameters/to_date'
+        - $ref: '#/components/parameters/payment_method_type'
+        - $ref: '#/components/parameters/per_page'
+        - $ref: '#/components/parameters/page'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payments-retrieve-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.READ
+components:
+  parameters:
+    account_id:
+      name: account_id
+      description: The Zoho Payments account ID.
+      in: query
+      required: true
+      schema:
+        type: number
+        format: long
+      example: 23137556
+    status:
+      name: status
+      description: 'Status can be: <code>Status.All</code>, <code>Status.Failed</code>, <code>Status.Succeeded</code>, <code>Status.Cancelled</code>, <code>Status.Refunded</code> or <code>Status.Disputed</code>.'
+      in: query
+      required: false
+      schema:
+        type: string
+      example: Status.All
+    search_text:
+      name: search_text
+      description: Search payments using payment ID, phone, email, or reference number.
+      in: query
+      required: false
+      schema:
+        type: string
+      example: '1987000000724207'
+    filter_by:
+      name: filter_by
+      description: 'Filter the payments list using date intervals: <code>ChargeDate.Today</code>, <code>ChargeDate.ThisMonth</code>, <code>ChargeDate.ThisYear</code>, <code>ChargeDate.PreviousMonth</code>, <code>ChargeDate.PreviousYear</code>, <code>ChargeDate.CustomDate</code>, <code>ChargeDate.Last_30_Days</code>.'
+      in: query
+      required: false
+      schema:
+        type: string
+      example: ChargeDate.Today
+    from_date:
+      name: from_date
+      description: If the given <code>filter_by</code> is <code>ChargeDate.CustomDate</code>, this param is required. (e.g., <code>2024-08-06</code> )
+      in: query
+      required: false
+      schema:
+        type: string
+      example: '2024-08-29'
+    to_date:
+      name: to_date
+      description: If the given <code>filter_by</code> is <code>ChargeDate.CustomDate</code>, this param is required. (e.g., <code>2024-08-10</code> )
+      in: query
+      required: false
+      schema:
+        type: string
+      example: '2024-08-30'
+    payment_method_type:
+      name: payment_method_type
+      description: 'Payment method types can be : <code>all</code>, <code>upi</code>, <code>card</code> , <code>bank_transfer</code> or <code>net_banking</code>.'
+      in: query
+      required: false
+      schema:
+        type: string
+      example: card
+    per_page:
+      name: per_page
+      description: Indicates the number of payments to list per page. The default value is <code>25</code> per page, and the maximum limit is <code>200</code>.
+      in: query
+      required: false
+      schema:
+        type: integer
+      example: 25
+    page:
+      name: page
+      description: Indicates the page number of the payments list. (e.g., <code>1</code> )
+      in: query
+      required: false
+      schema:
+        type: integer
+      example: 1
+  schemas:
+    gendoc-attributes-schema:
+      $ref: '#/components/schemas/payment-response'
+    payment-response:
+      type: object
+      properties:
+        payment_id:
+          $ref: '#/components/schemas/payment_id'
+        phone:
+          $ref: '#/components/schemas/phone'
+        amount:
+          $ref: '#/components/schemas/amount'
+        currency:
+          $ref: '#/components/schemas/currency'
+        payments_session_id:
+          $ref: '#/components/schemas/payments_session_id'
+        receipt_email:
+          $ref: '#/components/schemas/receipt_email'
+        reference_number:
+          $ref: '#/components/schemas/reference_number'
+        transaction_reference_number:
+          $ref: '#/components/schemas/transaction_reference_number'
+        invoice_number:
+          $ref: '#/components/schemas/invoice_number'
+        amount_captured:
+          $ref: '#/components/schemas/amount_captured'
+        amount_refunded:
+          $ref: '#/components/schemas/amount_refunded'
+        fee_amount:
+          $ref: '#/components/schemas/fee_amount'
+        net_tax_amount:
+          $ref: '#/components/schemas/net_tax_amount'
+        total_fee_amount:
+          $ref: '#/components/schemas/total_fee_amount'
+        net_amount:
+          $ref: '#/components/schemas/net_amount'
+        status:
+          $ref: '#/components/schemas/status'
+        statement_descriptor:
+          $ref: '#/components/schemas/statement_descriptor'
+        description:
+          $ref: '#/components/schemas/description'
+        date:
+          $ref: '#/components/schemas/date'
+        payment_method:
+          $ref: '#/components/schemas/payment_method'
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+    payment_id:
+      description: A unique ID for payments made through Zoho Payments.
+      type: string
+      example: '1987000000724207'
+    phone:
+      description: Phone number associated with the payment.
+      type: string
+      example: +91 0000000000
+    default_currency_amount:
+      description: Amount in the default currency (base currency).
+      type: string
+      example: '200.00'
+    amount:
+      description: The payment amount.
+      type: string
+      example: '200.00'
+    default_currency:
+      description: The default currency (base currency) used for the payment, represented by a 3-letter ISO currency code <br>(e.g., <code class="url">INR</code>).
+      type: string
+      example: INR
+    currency:
+      description: Currency of the payment amount, represented by a 3-letter ISO currency code <br>(e.g., <code class="url">INR</code>).
+      type: string
+      example: INR
+    payments_session_id:
+      description: An identifier assigned to the payment session. This can be used to track all payments within a specific session.
+      type: string
+      example: '1987000000724189'
+    receipt_email:
+      description: Email address to which the payment receipt will be sent.
+      type: string
+      example: xxx@abc.com
+    reference_number:
+      description: The reference number you provided during payment initiation.
+      type: string
+      example: REF-12345
+    transaction_reference_number:
+      description: A unique ID linked to the transaction to help customers track and identify the payments with their bank.
+      type: string
+      example: 11367820000A
+    default_currency_balance:
+      description: Remaining balance in the base currency after accounting for refunds, disputes, and other adjustments.
+      type: string
+      example: '100.00'
+    balance:
+      description: Remaining balance in the foreign currency after accounting for refunds, disputes, and other adjustments.
+      type: string
+      example: '100.00'
+    default_currency_amount_captured:
+      description: Amount captured from the transaction in base currency, excluding subsequent refunds.
+      type: string
+      example: '200.00'
+    amount_captured:
+      description: Amount captured from the transaction, excluding subsequent refunds.
+      type: string
+      example: '200.00'
+    default_currency_amount_refunded:
+      description: Total refunded amount in the base currency.
+      type: string
+      example: '100.00'
+    amount_refunded:
+      description: Total refunded amount.
+      type: string
+      example: '100.00'
+    default_currency_fee_amount:
+      description: Fee amount in the default currency (base currency).
+      type: string
+      example: '4.00'
+    fee_amount:
+      description: Fee amount charged for the payment.
+      type: string
+      example: '4.00'
+    default_currency_net_fee_amount:
+      description: Net fee amount in the default currency (base currency) after any adjustments.
+      type: string
+      example: '4.00'
+    net_fee_amount:
+      description: Net fee amount in foreign currency after any adjustments.
+      type: string
+      example: '4.00'
+    default_currency_processing_fee_amount:
+      description: Processing fee amount in the default currency (base currency).
+      type: string
+      example: '4.00'
+    processing_fee_amount:
+      description: Processing fee amount charged for the payment.
+      type: string
+      example: '4.00'
+    default_currency_net_tax_amount:
+      description: Net tax amount in the default currency (base currency).
+      type: string
+      example: '0.72'
+    net_tax_amount:
+      description: Net tax amount.
+      type: string
+      example: '0.72'
+    total_fee_amount:
+      description: Total fee amount including all charges and deductions
+      type: string
+      example: '4.72'
+    default_currency_net_amount:
+      description: Net amount in the default currency after deductions.
+      type: string
+      example: '95.28'
+    net_amount:
+      description: Net amount after deductions.
+      type: string
+      example: '95.28'
+    exchange_rate:
+      description: The rate at which one currency is converted into another during the transaction.
+      type: number
+      format: double
+      example: 1
+    invoice_number:
+      description: The invoice number of the payment.
+      type: string
+      example: INV-12345
+    status:
+      description: 'Status of the payment: <code>initiated</code>, <code>succeeded</code>, <code>failed</code>, <code>canceled</code>, <code>incomplete</code>, <code>refunded</code>, <code>partially_refunded</code>, <code>blocked</code>, or <code>disputed</code>.'
+      type: string
+      example: partially_refunded
+    statement_descriptor:
+      description: Descriptor shown on the statement to identify the payment.
+      type: string
+      example: Zoho Payments
+    description:
+      description: A description of the payment.
+      type: string
+      example: Payment for INV-000008
+    date:
+      description: Date (milliseconds) on which the payment was processed.
+      type: integer
+      format: int64
+      example: 1715163045
+    fee_details:
+      description: Information about the fees associated with a payment transaction.
+      type: object
+      properties:
+        processing_fee:
+          $ref: '#/components/schemas/processing_fee'
+    payment_method:
+      description: |-
+        Payment method is either <code>upi</code>, <code>net_banking</code>, <code>bank_transfer</code>, and <code>card</code> <details> <summary class="link"> <span class="show-hide-attribute-text" data-showhide="Show Sub-Attributes">Available payment method</span> <img src="/in/payments/api/v1/images/dropdown-arrow.svg" class="arrow-icon" alt="arrow" width="9px" height="9px"> </summary> <div class="attribute-wrapper"> 
+
+        <div class="row attribute small-line" id="overview-payment_method-upi"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> upi </div> <div class="property-datatype"> object </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">Contains UPI details.</div> <details> <summary class="link"> <span class="show-hide-attribute-text" data-showhide="Show Sub-Attributes">Show Sub-Attributes</span> <img src="/in/payments/api/v1/images/dropdown-arrow.svg" class="arrow-icon" alt="arrow" width="9px" height="9px">
+        </summary> <div class="nested-attribute-wrapper"> <div class="row attribute small-line" id="overview-payment_method-upi-upi_id"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> upi_id </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The UPI ID associated with the transaction.</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-upi-channel"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> channel </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The UPI channel used for the transaction (e.g., <code class="url">collect</code>, <code class="url">qr</code>, <code class="url">intent</code>).</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-upi-account_type"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> account_type </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The type of account linked with the UPI transaction (e.g., <code class="url">bank_account</code>, <code class="url">wallet</code>, <code class="url">card</code>).</div> </div> </div>
+        </div> </details> </div> </div>
+        <div class="row attribute small-line" id="overview-payment_method-net_banking"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> net_banking </div> <div class="property-datatype"> object </div> <div class="property-kind" id="Optional"> </div> </div> <div class="prop-descrip">Contains net banking details.</div> <details> <summary class="link"> <span class="show-hide-attribute-text" data-showhide="Show Sub-Attributes">Show Sub-Attributes</span> <img src="/in/payments/api/v1/images/dropdown-arrow.svg" class="arrow-icon" alt="arrow" width="9px" height="9px"> </summary> <div class="nested-attribute-wrapper"> <div class="row attribute small-line" id="overview-payment_method-net_banking-bank_name"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> bank_name </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional"> </div> </div> <div class="prop-descrip">The name of the bank used in the net banking transaction.</div> </div> </div> </div> </details> </div> </div>
+        <div class="row attribute small-line" id="overview-payment_method-card"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> card </div> <div class="property-datatype"> object </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">Contains card details.</div> <details> <summary class="link"> <span class="show-hide-attribute-text" data-showhide="Show Sub-Attributes">Show Sub-Attributes</span> <img src="/in/payments/api/v1/images/dropdown-arrow.svg" class="arrow-icon" alt="arrow" width="9px" height="9px">
+        </summary> <div class="nested-attribute-wrapper"> <div class="row attribute small-line" id="overview-payment_method-card-last_four_digits"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> last_four_digits </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The last four digits of the card number.</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-card-card_holder_name"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> card_holder_name </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The name of the cardholder.</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-card-expiry_month"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> expiry_month </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The month when the card expires, formatted as MM.</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-card-expiry_year"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> expiry_year </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The year when the card expires, formatted as YY.</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-card-brand"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> brand </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The brand of the card (e.g., <code>visa</code>, <code>master_card</code>, <code>rupay</code>).</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-card-funding"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> funding </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The type of funding for the card (e.g., <code>credit</code>, <code>debit</code>).</div> </div> </div>
+        </div> </details> </div> </div>
+        <div class="row attribute small-line" id="overview-payment_method-bank_transfer"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> bank_transfer </div> <div class="property-datatype"> object </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">Contains bank transfer details.</div> <details> <summary class="link"> <span class="show-hide-attribute-text" data-showhide="Show Sub-Attributes">Show Sub-Attributes</span> <img src="/in/payments/api/v1/images/dropdown-arrow.svg" class="arrow-icon" alt="arrow" width="9px" height="9px">
+        </summary> <div class="nested-attribute-wrapper"> <div class="row attribute small-line" id="overview-payment_method-bank_transfer-virtual_account_number"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> virtual_account_number </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The virtual account number.</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-bank_transfer-mode"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> mode </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The mode of bank transfer (e.g., <code class="url">NEFT</code>, <code class="url">RTGS</code>, <code class="url">IMPS</code>).</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-bank_transfer-payer_name"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> payer_name </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The payer name.</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-bank_transfer-payer_account_no"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> payer_account_no </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The account number of the payer.</div> </div> </div> <div class="row attribute small-line" id="overview-payment_method-bank_transfer-payer_ifsc_code"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> payer_ifsc_code </div> <div class="property-datatype"> string </div> <div class="property-kind" id="Optional">
+        </div> </div> <div class="prop-descrip">The IFSC of the payer’s bank.</div> </div> </div>
+        </div> </details> </div> </div>
+
+        </div>  </details> 
+        <br> Payment method with UPI details
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/type'
+        upi:
+          $ref: '#/components/schemas/upi'
+        mandate_id:
+          description: The mandate ID associated with the recurring payment.
+          type: string
+          example: '216000001494790'
+    payment_method_retrieve:
+      description: Payment method details in the retrieved payment list.
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/type'
+    fcy_fee_amount:
+      description: The fee amount in foreign currency.
+      type: string
+      example: '4.00'
+    fee_type:
+      description: 'Type of fee: <code>processing_fee</code>, <code>conversion_fee</code>, or <code>payment_failure_fee</code>.'
+      type: string
+      example: processing_fee
+    is_refunded:
+      description: Indicates whether any transaction fees have been refunded (is_refunded is either <code>true</code>, or <code>false</code>).
+      type: boolean
+      example: false
+    processing_fee:
+      description: Contains details about the processing fee.
+      type: object
+      properties:
+        fee_amount:
+          description: The fee amount in the base currency.
+          type: string
+          example: '4.00'
+        fcy_fee_amount:
+          $ref: '#/components/schemas/fcy_fee_amount'
+        fee_type:
+          $ref: '#/components/schemas/fee_type'
+        is_refunded:
+          $ref: '#/components/schemas/is_refunded'
+    type:
+      description: The type of payment method. This can be <code>upi</code>, <code>net_banking</code>, <code>bank_transfer</code>, and <code>card</code>.
+      type: string
+      example: upi
+    card:
+      description: Contains card details.
+      type: object
+      properties:
+        card_holder_name:
+          description: The name of the cardholder.
+          type: string
+          example: Akash
+        last_four_digits:
+          description: The last four digits of the card number.
+          type: string
+          example: '3212'
+        expiry_month:
+          description: The month when the card expires, formatted as MM.
+          type: string
+          example: '01'
+        expiry_year:
+          description: The year when the card expires, formatted as YY.
+          type: string
+          example: '26'
+        brand:
+          description: The brand of the card (e.g., <code>visa</code>, <code>master_card</code>, <code>rupay</code>).
+          type: string
+          example: rupay
+        funding:
+          description: The type of funding for the card (e.g., <code>credit</code>, <code>debit</code>).
+          type: string
+          example: debit
+    upi:
+      description: Contains UPI details.
+      type: object
+      properties:
+        upi_id:
+          description: The UPI ID associated with the transaction.
+          type: string
+          example: akash@examplebank
+        channel:
+          description: The UPI channel or app used for the transaction.
+          type: string
+          example: qr
+        account_type:
+          description: The type of account linked with the UPI transaction.
+          type: string
+          example: bank_account
+    net_banking:
+      description: Contains net banking details.
+      type: object
+      properties:
+        bank_name:
+          description: The name of the bank used in the net banking transaction.
+          type: string
+          example: test_bank
+    bank_transfer:
+      description: Contains bank transfer details.
+      type: object
+      properties:
+        virtual_account_number:
+          description: The virtual account number.
+          type: string
+          example: '9876543210'
+        mode:
+          description: The mode of bank transfer. This can be <code>NEFT</code>, <code>RTGS</code>, or <code>IMPS</code>.
+          type: string
+          example: NEFT
+        payer_name:
+          description: The payer name.
+          type: string
+          example: John Doe
+        payer_account_no:
+          description: The payer account number.
+          type: string
+          example: '1234567890'
+        payer_ifsc_code:
+          description: The payer IFSC code.
+          type: string
+          example: ABCD0123456
+    refunds:
+      description: Refund details
+      type: array
+      items:
+        type: object
+        properties:
+          refund_id:
+            description: The unique identifier created for the refund.
+            type: string
+            example: '1987000000724259'
+          default_currency_amount:
+            description: Amount in the default or settlement currency.
+            type: number
+            format: double
+            example: '100.00'
+          amount:
+            description: The amount for which the refund was created.
+            type: number
+            format: double
+            example: '100.00'
+          type:
+            description: 'The type of refund: <code>initiated_by_merchant</code>, <code>initiated_by_customer</code>, or <code>initiated_by_system</code>'
+            type: string
+            example: initiated_by_merchant
+          initiated_by_id:
+            description: ID of the entity that initiated the refund.
+            type: string
+            example: '1987000000662193'
+          initiated_by:
+            description: The entity that initiated the refund.
+            type: string
+            example: Akash
+          reason:
+            description: 'The reason for the refund:  <code>duplicate</code>, <code>fraudulent</code>,<code>requested_by_customer</code>,<code>others</code>,<code>system_initiated</code>, and <code>expired_uncaptured_charge</code>'
+            type: string
+            example: requested_by_customer
+          description:
+            description: A description of the refund.
+            type: string
+            example: ''
+          status:
+            description: 'Status of the refund: <code>initiated</code>, <code>succeeded</code>, <code>failed</code>, <code>canceled</code>, and <code>pending</code> .'
+            type: string
+            example: succeeded
+          network_reference_number:
+            description: Network reference number for the refund.
+            type: string
+            example: '423411242129'
+          date:
+            description: The date (milliseconds) on which the refund was initiated.
+            type: integer
+            format: int64
+            example: 1724221766
+    payment-retrieve-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        payment:
+          $ref: '#/components/schemas/payment-response'
+    payments-retrieve-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        payments:
+          type: array
+          items:
+            type: object
+            properties:
+              payment_id:
+                $ref: '#/components/schemas/payment_id'
+              amount:
+                $ref: '#/components/schemas/amount'
+              currency:
+                $ref: '#/components/schemas/currency'
+              payments_session_id:
+                $ref: '#/components/schemas/payments_session_id'
+              receipt_email:
+                $ref: '#/components/schemas/receipt_email'
+              reference_number:
+                $ref: '#/components/schemas/reference_number'
+              amount_captured:
+                $ref: '#/components/schemas/amount_captured'
+              amount_refunded:
+                $ref: '#/components/schemas/amount_refunded'
+              fee_amount:
+                $ref: '#/components/schemas/fee_amount'
+              net_tax_amount:
+                $ref: '#/components/schemas/net_tax_amount'
+              total_fee_amount:
+                $ref: '#/components/schemas/total_fee_amount'
+              net_amount:
+                $ref: '#/components/schemas/net_amount'
+              status:
+                $ref: '#/components/schemas/status'
+              statement_descriptor:
+                $ref: '#/components/schemas/statement_descriptor'
+              description:
+                $ref: '#/components/schemas/description'
+              date:
+                $ref: '#/components/schemas/date'
+              payment_method:
+                $ref: '#/components/schemas/payment_method_retrieve'
+  securitySchemes:
+    Zoho_Auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://accounts.zoho.in/oauth/v2/auth
+          scopes:
+            ZohoPay.payments.READ: Fetch Payments Details

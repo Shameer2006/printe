@@ -1,0 +1,292 @@
+openapi: 3.0.0
+info:
+  title: Refunds
+  description: 'The refunds module allows you to initiate and manage refunds. You can make full or partial refunds for payments that have been paid successfully using the Refund APIs. It has the following parameters:'
+  contact: {}
+  version: 1.0.0
+servers:
+  - url: https://payments.zoho.in/api/v1
+    description: API Endpoint
+tags:
+  - name: refunds
+    description: Refunds Module
+paths:
+  /payments/{payment_id}/refunds:
+    post:
+      tags:
+        - refunds
+      summary: Create Refund
+      description: This API endpoint allows you to create a refund for a payment.
+      parameters:
+        - name: payment_id
+          description: The Payment ID associated with the refund.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 731000001449003
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/payment-refund-request'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payment-refund-create-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.refunds.CREATE
+  /refunds/{refund_id}:
+    get:
+      tags:
+        - refunds
+      summary: Retrieve Refund Details
+      description: Used to retrieve details of a specific refund.
+      parameters:
+        - name: refund_id
+          description: The unique identifier created for the refund.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 731000001449003
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/refund_retrieve-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.refunds.READ
+components:
+  parameters:
+    account_id:
+      name: account_id
+      description: The Zoho Payments account ID.
+      in: query
+      required: true
+      schema:
+        type: number
+        format: long
+      example: 23137556
+  schemas:
+    gendoc-attributes-schema:
+      $ref: '#/components/schemas/payment-refund-response'
+    payment-refund-response:
+      type: object
+      properties:
+        refund_id:
+          $ref: '#/components/schemas/refund_id'
+        payment_id:
+          $ref: '#/components/schemas/payment_id'
+        reference_number:
+          $ref: '#/components/schemas/reference_number'
+        amount:
+          $ref: '#/components/schemas/amount-response'
+        type:
+          $ref: '#/components/schemas/type'
+        reason:
+          $ref: '#/components/schemas/reason'
+        description:
+          $ref: '#/components/schemas/description'
+        status:
+          $ref: '#/components/schemas/status'
+        network_reference_number:
+          $ref: '#/components/schemas/network_reference_number'
+        failure_reason:
+          $ref: '#/components/schemas/failure_reason'
+        date:
+          $ref: '#/components/schemas/date'
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+    refund_id:
+      description: The unique identifier created for the refund.
+      type: string
+      example: '173000002895561'
+    payment_id:
+      description: The Payment ID associated with the refund.
+      type: string
+      example: '173000002895221'
+    reference_number:
+      description: The reference number for the refund.
+      type: string
+      example: '4113662000000240001'
+    default_currency_amount:
+      description: Amount in the default or settlement currency.
+      type: string
+      example: '200.00'
+    amount:
+      description: The amount for which the refund was created.
+      type: number
+      format: double
+      example: 200
+    amount-response:
+      description: The amount for which the refund was created.
+      type: string
+      example: '200.00'
+    type:
+      description: 'The type of refund: By the user: <code>initiated_by_merchant</code>, <code>initiated_by_customer</code>. By Zoho Payments (Internal): <code>initiated_by_system</code>'
+      type: string
+      example: initiated_by_merchant
+    initiated_by_id:
+      description: ID of the entity that initiated the refund.
+      type: string
+      example: '173000002114001'
+    initiated_by:
+      description: The entity that initiated the refund.
+      type: string
+      example: Akash
+    default_currency:
+      description: The default currency (base currency) used for the refund, represented by a 3-letter ISO currency code <br>(e.g., <code class="url">INR</code>).
+      type: string
+      example: INR
+    reason:
+      description: 'The reason for the refund: By the user: <code>duplicate</code>, <code>fraudulent</code>, <code>requested_by_customer</code>, <code>others</code>. By Zoho Payments (Internal): <code>system_initiated</code>.'
+      type: string
+      example: requested_by_customer
+    description:
+      description: A description of the refund.
+      type: string
+      example: Refund for Payment (INV-000008)
+    status:
+      description: 'Status of the refund: <code>initiated</code>, <code>succeeded</code>, <code>failed</code>, <code>canceled</code>, or <code>pending</code> .'
+      type: string
+      example: succeeded
+    network_reference_number:
+      description: Network reference number for the refund.
+      type: string
+      example: '1724154320460'
+    failure_reason:
+      description: 'Reason for failure, if applicable: <br> <code>unknown</code> , <code>lost_or_stolen_card</code> , <code>expired_or_canceled_card</code> , <code>exceeds_payment_amount</code> , <code>exceeds_balance_amount</code> , <code>payment_already_refunded</code> , <code>payment_already_disputed</code> , <code>payment_not_captured</code> , <code>expiry_time_exceeded</code> , <code>amount_too_small</code> , <code>insufficient_funds</code> ,  <code>charge_for_pending_refund_disputed</code> , or <code>merchant_request</code> .'
+      type: string
+      example: ''
+    date:
+      description: The date (milliseconds) on which the refund was initiated.
+      type: integer
+      format: int64
+      example: 1724154320
+    refund:
+      type: object
+      properties:
+        refund_id:
+          $ref: '#/components/schemas/refund_id'
+        payment_id:
+          $ref: '#/components/schemas/payment_id'
+        reference_number:
+          $ref: '#/components/schemas/reference_number'
+        default_currency_amount:
+          $ref: '#/components/schemas/default_currency_amount'
+        amount:
+          $ref: '#/components/schemas/amount'
+        type:
+          $ref: '#/components/schemas/type'
+        initiated_by_id:
+          $ref: '#/components/schemas/initiated_by_id'
+        initiated_by:
+          $ref: '#/components/schemas/initiated_by'
+        reason:
+          $ref: '#/components/schemas/reason'
+        description:
+          $ref: '#/components/schemas/description'
+        status:
+          $ref: '#/components/schemas/status'
+        network_reference_number:
+          $ref: '#/components/schemas/network_reference_number'
+        failure_reason:
+          $ref: '#/components/schemas/failure_reason'
+        date:
+          $ref: '#/components/schemas/date'
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+    payment-refund-request:
+      required:
+        - amount
+        - reason
+        - type
+      type: object
+      properties:
+        amount:
+          description: The amount to be refunded, with support for decimal places.
+          type: number
+          format: double
+          example: 200
+        reason:
+          $ref: '#/components/schemas/reason'
+        type:
+          $ref: '#/components/schemas/type'
+        description:
+          $ref: '#/components/schemas/description'
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+    payment-refund-create-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: Refund initiated
+          readOnly: true
+        refund:
+          $ref: '#/components/schemas/payment-refund-response'
+    refund_retrieve-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        refund:
+          type: object
+          properties:
+            refund_id:
+              $ref: '#/components/schemas/refund_id'
+            payment_id:
+              $ref: '#/components/schemas/payment_id'
+            reference_number:
+              $ref: '#/components/schemas/reference_number'
+            amount:
+              $ref: '#/components/schemas/amount-response'
+            type:
+              $ref: '#/components/schemas/type'
+            reason:
+              $ref: '#/components/schemas/reason'
+            description:
+              $ref: '#/components/schemas/description'
+            status:
+              $ref: '#/components/schemas/status'
+            network_reference_number:
+              $ref: '#/components/schemas/network_reference_number'
+            failure_reason:
+              $ref: '#/components/schemas/failure_reason'
+            date:
+              $ref: '#/components/schemas/date'
+            meta_data:
+              $ref: ./common.yml#/components/schemas/meta_data
+  securitySchemes:
+    Zoho_Auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://accounts.zoho.in/oauth/v2/auth
+          scopes:
+            ZohoPay.refunds.CREATE: Create Refund for Payment
+            ZohoPay.refunds.READ: Retrieve Refund for Payment
