@@ -29,10 +29,11 @@ export async function POST(req: NextRequest) {
             description: `PrintEG Order - ${orderCode}`,
         };
 
-        // Only add return_url if a valid public URL is configured
-        if (baseUrl && !baseUrl.includes('localhost')) {
-            payload.return_url = `${baseUrl}/api/zoho/callback?orderCode=${orderCode}&status=success`;
-        }
+        // Always send return_url — Zoho requires a public HTTPS URL (not localhost)
+        const publicBase = (baseUrl && !baseUrl.includes('localhost'))
+            ? baseUrl
+            : "https://www.printeg.in"; // fallback for local dev testing on production
+        payload.return_url = `${publicBase}/api/zoho/callback?orderCode=${orderCode}&status=success`;
 
         const url = `https://payments.zoho.in/api/v1/paymentlinks?account_id=${accountId}`;
 

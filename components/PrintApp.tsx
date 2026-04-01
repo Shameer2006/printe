@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { FileUpload } from "@/components/FileUpload";
 import { PrintConfig } from "@/components/PrintConfig";
 import { Completion } from "@/components/Completion";
@@ -31,6 +32,8 @@ type Mode = "upload" | "ai-doc" | "a4-sheet";
 
 export default function PrintApp() {
   const { vendor, storeName, isPoweredBy } = useVendor();
+  const searchParams = useSearchParams();
+
 
   const [step, setStep] = useState<Step>("upload");
   const [mode, setMode] = useState<Mode>("upload");
@@ -46,6 +49,24 @@ export default function PrintApp() {
   const [isAIDoc, setIsAIDoc] = useState(false);
   const [copies, setCopies] = useState(1);
   const [showQRScanner, setShowQRScanner] = useState(false);
+
+  // Read URL params set by the payment gateway callback redirect
+  useEffect(() => {
+    const urlStep = searchParams.get("step");
+    const urlOrderCode = searchParams.get("orderCode");
+    const urlError = searchParams.get("error");
+
+    if (urlStep === "complete" && urlOrderCode) {
+      setOrderCode(urlOrderCode);
+      setStep("complete");
+      // Use native history API to clean URL — router.replace() would re-mount the component and reset state
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (urlStep === "payment" && urlError) {
+      toast.error(urlError);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // --- Razorpay checkout helper (commented out — kept for reference) ---
   // const openRazorpayCheckout = async (code: string, amount: number, mobile: string) => {
