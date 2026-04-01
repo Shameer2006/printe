@@ -10,7 +10,7 @@ import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
 import { mergePDFs, generateOrderCode } from "@/lib/utils";
 import { db, storage } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "sonner";
 import { Loader2, ScanLine } from "lucide-react";
@@ -51,19 +51,43 @@ export default function PrintApp() {
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   // Read URL params set by the payment gateway callback redirect
+  // Also handles mobile GPay fallback via Firestore real-time listener
   useEffect(() => {
     const urlStep = searchParams.get("step");
     const urlOrderCode = searchParams.get("orderCode");
     const urlError = searchParams.get("error");
 
     if (urlStep === "complete" && urlOrderCode) {
+      // Normal redirect worked — show Completion and clean up
       setOrderCode(urlOrderCode);
       setStep("complete");
-      // Use native history API to clean URL — router.replace() would re-mount the component and reset state
+      sessionStorage.removeItem("printeg_pending_order");
       window.history.replaceState({}, "", window.location.pathname);
-    } else if (urlStep === "payment" && urlError) {
+      return;
+    }
+
+    if (urlStep === "payment" && urlError) {
       toast.error(urlError);
       window.history.replaceState({}, "", window.location.pathname);
+      return;
+    }
+
+    // --- Mobile GPay fallback ---
+    // On mobile, GPay opens as a native app. When it returns to the browser,
+    // Zoho's success page redirect often doesn't fire. We save the orderCode
+    // to sessionStorage before leaving, then listen to Firestore here.
+    // The moment the webhook marks the order PAID, we show Completion automatically.
+    const pendingCode = sessionStorage.getItem("printeg_pending_order");
+    if (pendingCode) {
+      const unsubscribe = onSnapshot(doc(db, "orders", pendingCode), (snapshot) => {
+        if (snapshot.exists() && snapshot.data()?.payment_status === "PAID") {
+          setOrderCode(pendingCode);
+          setStep("complete");
+          sessionStorage.removeItem("printeg_pending_order");
+          unsubscribe();
+        }
+      });
+      return unsubscribe; // Clean up listener on unmount
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -139,6 +163,9 @@ export default function PrintApp() {
     if (!data.paymentUrl) {
       throw new Error(data.error || "Failed to create payment link");
     }
+
+    // Save orderCode so we can recover if mobile GPay redirect doesn't fire
+    sessionStorage.setItem("printeg_pending_order", code);
 
     // Redirect user to Zoho's hosted payment page
     window.location.href = data.paymentUrl;
