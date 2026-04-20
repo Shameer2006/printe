@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { getAdminDb } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
     try {
@@ -14,21 +13,43 @@ export async function POST(req: NextRequest) {
 
         // Read raw body for signature verification
         const rawBody = await req.text();
-        const receivedSignature = req.headers.get("x-zoho-webhook-signature") || "";
+        const headerValue = req.headers.get("x-zoho-webhook-signature") || "";
+
+        let timestamp = "";
+        let receivedSignature = "";
+
+        // Zoho Payments uses a Stripe-like signature: t=12345,v=abcdef...
+        const parts = headerValue.split(",");
+        for (const part of parts) {
+            const [key, ...valueParts] = part.split("=");
+            const value = valueParts.join("="); // Handle '=' in the value
+            if (key === "t") timestamp = value;
+            if (key === "v" || key === "v1") receivedSignature = value;
+        }
+
+        // Fallback for older Zoho APIs that just send the raw signature
+        if (!receivedSignature) {
+            receivedSignature = headerValue;
+        }
+
+        const payloadToSign = timestamp ? `${timestamp}.${rawBody}` : rawBody;
 
         // Verify HMAC-SHA256 signature
         const expectedSignature = crypto
             .createHmac("sha256", signingKey)
-            .update(rawBody)
+            .update(payloadToSign)
             .digest("hex");
 
-        const isValid = crypto.timingSafeEqual(
-            Buffer.from(receivedSignature),
-            Buffer.from(expectedSignature)
-        );
+        let isValid = false;
+        if (receivedSignature.length === expectedSignature.length) {
+            isValid = crypto.timingSafeEqual(
+                Buffer.from(receivedSignature),
+                Buffer.from(expectedSignature)
+            );
+        }
 
         if (!isValid) {
-            console.error("Zoho Webhook: Invalid signature");
+            console.error(`Zoho Webhook: Invalid signature. Expected: ${expectedSignature}, Received: ${receivedSignature}`);
             return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
         }
 
@@ -42,12 +63,14 @@ export async function POST(req: NextRequest) {
             const transactionId = paymentLink?.payment_id || paymentLink?.payment_link_id;
 
             if (orderCode) {
-                const orderRef = doc(db, "orders", orderCode);
-                await updateDoc(orderRef, {
+                const db = getAdminDb();
+                const orderRef = db.collection("orders").doc(orderCode);
+                await orderRef.update({
                     payment_status: "PAID",
                     zoho_payment_id: transactionId,
                     zoho_payment_link_id: paymentLink?.payment_link_id,
                     paid_at: new Date().toISOString(),
+                    paid_via: "zoho_webhook",
                 });
 
                 console.log(`Zoho Webhook: Order ${orderCode} marked as PAID`);

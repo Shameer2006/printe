@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAdminDb } from "@/lib/firebase-admin";
 
 export async function GET(req: NextRequest) {
     const searchParams = req.nextUrl.searchParams;
@@ -30,6 +31,21 @@ export async function GET(req: NextRequest) {
     const redirectUrl = new URL("/", req.url);
 
     if (status === "success" && orderCode) {
+        // Mark the order as PAID using Firebase Admin SDK (bypasses security rules)
+        try {
+            const db = getAdminDb();
+            const orderRef = db.collection("orders").doc(orderCode);
+            await orderRef.update({
+                payment_status: "PAID",
+                paid_at: new Date().toISOString(),
+                paid_via: "zoho_callback",
+            });
+            console.log(`Zoho Callback: Order ${orderCode} marked as PAID`);
+        } catch (error) {
+            console.error(`Zoho Callback: Failed to update order ${orderCode}:`, error);
+            // Still redirect user to completion — verify-payment API will retry
+        }
+
         redirectUrl.searchParams.set("step", "complete");
         redirectUrl.searchParams.set("orderCode", orderCode);
     } else {
