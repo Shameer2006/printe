@@ -581,6 +581,7 @@ export default function PrintApp() {
                   src={heroImage}
                   alt="Print Smart"
                   fill
+                  sizes="(max-width: 768px) 100vw, 448px"
                   className="object-contain"
                   priority
                   placeholder="blur"
