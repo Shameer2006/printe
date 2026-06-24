@@ -57,6 +57,8 @@ export async function POST(req: NextRequest) {
         const payload = JSON.parse(rawBody);
         const eventType = payload.event_type;
 
+        console.log(`Zoho Webhook received event: ${eventType}`);
+
         if (eventType === "payment_link.paid") {
             const paymentLink = payload.data?.payment_link;
             const orderCode = paymentLink?.reference_id;
@@ -65,6 +67,19 @@ export async function POST(req: NextRequest) {
             if (orderCode) {
                 const db = getAdminDb();
                 const orderRef = db.collection("orders").doc(orderCode);
+                const orderSnap = await orderRef.get();
+
+                if (!orderSnap.exists) {
+                    console.error(`Zoho Webhook: Order ${orderCode} NOT FOUND in Firestore`);
+                    return NextResponse.json({ success: true, warning: "Order not found" });
+                }
+
+                // Idempotency check: skip if already paid
+                if (orderSnap.data()?.payment_status === "PAID") {
+                    console.log(`Zoho Webhook: Order ${orderCode} already PAID, skipping`);
+                    return NextResponse.json({ success: true, alreadyPaid: true });
+                }
+
                 await orderRef.update({
                     payment_status: "PAID",
                     zoho_payment_id: transactionId,
@@ -74,6 +89,8 @@ export async function POST(req: NextRequest) {
                 });
 
                 console.log(`Zoho Webhook: Order ${orderCode} marked as PAID`);
+            } else {
+                console.warn("Zoho Webhook: payment_link.paid event but no reference_id found in payload");
             }
         }
 

@@ -49,6 +49,18 @@ export async function POST(req: NextRequest) {
         const data = await response.json();
 
         if (data.code === 0 && data.payment_links) {
+            // Save the payment link ID back into the Firestore order for reliable verification
+            try {
+                const { getAdminDb } = await import("@/lib/firebase-admin");
+                const adminDb = getAdminDb();
+                await adminDb.collection("orders").doc(orderCode).update({
+                    zoho_payment_link_id: data.payment_links.payment_link_id,
+                });
+            } catch (err) {
+                console.warn("Failed to save payment_link_id to Firestore order:", err);
+                // Non-fatal — the client also saves it to sessionStorage
+            }
+
             return NextResponse.json({
                 paymentUrl: data.payment_links.url,
                 paymentLinkId: data.payment_links.payment_link_id,

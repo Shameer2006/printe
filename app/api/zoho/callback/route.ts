@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
     const orderCode = searchParams.get("orderCode");
     const status = searchParams.get("status");
 
+    // Determine the correct redirect base path
+    // The base URL for the redirect — always the public site root
     const redirectUrl = new URL("/", req.url);
 
     if (status === "success" && orderCode) {
@@ -35,15 +37,42 @@ export async function GET(req: NextRequest) {
         try {
             const db = getAdminDb();
             const orderRef = db.collection("orders").doc(orderCode);
-            await orderRef.update({
-                payment_status: "PAID",
-                paid_at: new Date().toISOString(),
-                paid_via: "zoho_callback",
-            });
-            console.log(`Zoho Callback: Order ${orderCode} marked as PAID`);
+            const orderSnap = await orderRef.get();
+
+            if (orderSnap.exists) {
+                const currentData = orderSnap.data();
+                // Only update if not already PAID (idempotent)
+                if (currentData?.payment_status !== "PAID") {
+                    await orderRef.update({
+                        payment_status: "PAID",
+                        paid_at: new Date().toISOString(),
+                        paid_via: "zoho_callback",
+                    });
+                    console.log(`Zoho Callback: Order ${orderCode} marked as PAID`);
+                } else {
+                    console.log(`Zoho Callback: Order ${orderCode} already PAID, skipping update`);
+                }
+            } else {
+                console.error(`Zoho Callback: Order ${orderCode} NOT FOUND in Firestore`);
+            }
         } catch (error) {
             console.error(`Zoho Callback: Failed to update order ${orderCode}:`, error);
-            // Still redirect user to completion — verify-payment API will retry
+            // Still redirect user to completion — verify-payment API or Firestore listener will retry
+        }
+
+        // Check if the order belongs to a vendor store and redirect accordingly
+        try {
+            const db = getAdminDb();
+            const orderSnap = await db.collection("orders").doc(orderCode).get();
+            const vendorSlug = orderSnap.data()?.vendorSlug;
+            if (vendorSlug) {
+                const storeRedirectUrl = new URL(`/store/${vendorSlug}`, req.url);
+                storeRedirectUrl.searchParams.set("step", "complete");
+                storeRedirectUrl.searchParams.set("orderCode", orderCode);
+                return NextResponse.redirect(storeRedirectUrl, 303);
+            }
+        } catch {
+            // Ignore — fall through to default redirect
         }
 
         redirectUrl.searchParams.set("step", "complete");
@@ -55,3 +84,4 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.redirect(redirectUrl, 303);
 }
+

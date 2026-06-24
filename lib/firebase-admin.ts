@@ -25,8 +25,15 @@ function getAdminApp(): App {
             adminApp = initializeApp({
                 credential: cert({ projectId, clientEmail, privateKey }),
             });
+            console.log("Firebase Admin SDK initialized with service account credentials");
         } else {
-            // Fallback: initialize without credentials (works on Google Cloud environments)
+            console.warn(
+                "⚠️ Firebase Admin SDK: FIREBASE_ADMIN_CLIENT_EMAIL and/or FIREBASE_ADMIN_PRIVATE_KEY are missing!",
+                "\n  → Payment status updates (callback/webhook/verify) will FAIL on Vercel/local dev.",
+                "\n  → Go to Firebase Console → Project Settings → Service Accounts → Generate new private key",
+                "\n  → Add FIREBASE_ADMIN_CLIENT_EMAIL and FIREBASE_ADMIN_PRIVATE_KEY to your .env.local"
+            );
+            // Fallback: initialize without credentials (ONLY works on Google Cloud environments like Cloud Run)
             adminApp = initializeApp({ projectId });
         }
     }

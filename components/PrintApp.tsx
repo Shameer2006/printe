@@ -66,12 +66,40 @@ export default function PrintApp() {
       sessionStorage.removeItem("printeg_payment_link_id");
       window.history.replaceState({}, "", window.location.pathname);
 
-      // Verify payment & update DB via server-side Admin SDK
+      // Client-side fallback: directly update Firestore in case server-side Admin SDK failed
+      // (e.g. missing FIREBASE_ADMIN_CLIENT_EMAIL / FIREBASE_ADMIN_PRIVATE_KEY)
+      (async () => {
+        try {
+          const orderRef = doc(db, "orders", urlOrderCode);
+          const { getDoc } = await import("firebase/firestore");
+          const snap = await getDoc(orderRef);
+          if (snap.exists() && snap.data()?.payment_status !== "PAID") {
+            const { updateDoc } = await import("firebase/firestore");
+            await updateDoc(orderRef, {
+              payment_status: "PAID",
+              paid_at: new Date().toISOString(),
+              paid_via: "client_fallback",
+            });
+            console.log(`Client fallback: Order ${urlOrderCode} marked as PAID`);
+          }
+        } catch (err) {
+          console.warn("Client fallback Firestore update failed:", err);
+        }
+      })();
+
+      // Also verify payment & update DB via server-side Admin SDK (belt-and-suspenders)
       fetch("/api/zoho/verify-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderCode: urlOrderCode, paymentLinkId: savedLinkId }),
-      }).catch((err) => console.error("Verify payment call failed:", err));
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.verified) {
+            console.warn("Server verify-payment returned not verified:", data);
+          }
+        })
+        .catch((err) => console.error("Verify payment call failed:", err));
 
       return;
     }
