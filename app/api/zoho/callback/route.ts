@@ -26,13 +26,21 @@ export async function GET(req: NextRequest) {
     // --- Payment Callback Flow ---
     // After payment, Zoho redirects with ?orderCode=...&status=...
     const orderCode = searchParams.get("orderCode");
-    const status = searchParams.get("status");
+    const statusValues = searchParams.getAll("status");
+    const paymentStatus = searchParams.get("payment_status");
+    
+    const isSuccess = 
+        statusValues.includes("success") || 
+        statusValues.includes("paid") || 
+        statusValues.includes("succeeded") || 
+        paymentStatus === "paid" || 
+        paymentStatus === "succeeded";
 
     // Determine the correct redirect base path
     // The base URL for the redirect — always the public site root
     const redirectUrl = new URL("/", req.url);
 
-    if (status === "success" && orderCode) {
+    if (isSuccess && orderCode) {
         // Mark the order as PAID using Firebase Admin SDK (bypasses security rules)
         try {
             const db = getAdminDb();
