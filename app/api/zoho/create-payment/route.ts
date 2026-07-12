@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getZohoAccessToken } from "@/lib/zoho-auth";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
 export async function POST(req: NextRequest) {
     try {
@@ -45,9 +47,21 @@ export async function POST(req: NextRequest) {
         const data = await response.json();
 
         if (data.code === 0 && data.payment_link) {
+            const paymentLinkId = data.payment_link.payment_link_id;
+
+            // Store the payment link id on the order so the callback can
+            // verify the real payment status with Zoho after redirect.
+            try {
+                await updateDoc(doc(db, "orders", orderCode), {
+                    zoho_payment_link_id: paymentLinkId,
+                });
+            } catch (err) {
+                console.error("Failed to store zoho_payment_link_id on order:", err);
+            }
+
             return NextResponse.json({
                 paymentUrl: data.payment_link.url,
-                paymentLinkId: data.payment_link.payment_link_id,
+                paymentLinkId,
             });
         } else {
             console.error("Zoho Payment Link Creation Error:", data);

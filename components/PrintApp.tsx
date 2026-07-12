@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { FileUpload } from "@/components/FileUpload";
 import { PrintConfig } from "@/components/PrintConfig";
 import { Completion } from "@/components/Completion";
@@ -46,6 +46,30 @@ export default function PrintApp() {
   const [isAIDoc, setIsAIDoc] = useState(false);
   const [copies, setCopies] = useState(1);
   const [showQRScanner, setShowQRScanner] = useState(false);
+
+  // Restore state after returning from Zoho's hosted payment page.
+  // The redirect is a fresh page load, so React state (step, orderCode) is
+  // reset — we rebuild it from the URL query params set by /api/zoho/callback.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlStep = params.get("step");
+    const urlOrderCode = params.get("orderCode");
+    const urlError = params.get("error");
+
+    if (urlStep === "complete" && urlOrderCode) {
+      setOrderCode(urlOrderCode);
+      setStep("complete");
+    } else if (urlStep === "payment") {
+      setStep("payment");
+      if (urlError) toast.error(urlError);
+    }
+
+    // Clean the query params from the URL so a refresh / "Start New Order"
+    // begins fresh instead of re-triggering the completion screen.
+    if (urlStep) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   // --- Razorpay checkout helper (commented out — kept for reference) ---
   // const openRazorpayCheckout = async (code: string, amount: number, mobile: string) => {
