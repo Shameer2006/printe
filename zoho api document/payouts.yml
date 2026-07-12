@@ -1,0 +1,854 @@
+openapi: 3.0.0
+info:
+  title: Payouts
+  description: The Payout APIs provide details about payout transactions, including the amount, currency, and status.
+  contact: {}
+  version: 1.0.0
+servers:
+  - url: https://payments.zoho.in/api/v1
+    description: API Endpoint
+tags:
+  - name: payouts
+    description: Payouts Module
+paths:
+  /payouts:
+    get:
+      tags:
+        - payouts
+      summary: Retrieve Payouts List
+      description: Used to retrieve the details of all the payouts.
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/filter_by'
+        - $ref: '#/components/parameters/from_date'
+        - $ref: '#/components/parameters/to_date'
+        - $ref: '#/components/parameters/per_page'
+        - $ref: '#/components/parameters/page'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payouts-list-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payouts.READ
+  /payouts/{payout_id}:
+    get:
+      tags:
+        - payouts
+      summary: Retrieve Payout
+      description: Used to retrieve the details of a specific payout.
+      parameters:
+        - name: payout_id
+          description: The unique identifier created for the payout.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 193000002315107
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payout-retrieve-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payouts.READ
+  /payouts/{payout_id}/transactions:
+    get:
+      tags:
+        - payouts
+      summary: Retrieve Payout Transactions
+      description: Used to retrieve the details of all the transactions associated with a specific payout.
+      parameters:
+        - name: payout_id
+          description: The unique identifier created for the payout.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 193000002315107
+        - $ref: '#/components/parameters/account_id'
+        - $ref: '#/components/parameters/per_page'
+        - $ref: '#/components/parameters/page'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payout-transactions-retrieve-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payouts.READ
+components:
+  parameters:
+    account_id:
+      name: account_id
+      description: The Zoho Payments account ID.
+      in: query
+      required: true
+      schema:
+        type: number
+        format: long
+      example: 23137556
+    status:
+      name: status
+      description: 'Status can be: <code>Status.All</code>, <code>Status.Initiated</code>, <code>Status.Paid</code> or <code>Status.Failed</code>.'
+      in: query
+      required: false
+      schema:
+        type: string
+      example: Status.All
+    filter_by:
+      name: filter_by
+      description: 'Filter the payouts list using date intervals: <code>PayoutDate.Today</code>, <code>PayoutDate.ThisWeek</code>, <code>PayoutDate.ThisMonth</code>, <code>PayoutDate.ThisQuarter</code>, <code>PayoutDate.ThisHalfYear</code>, <code>PayoutDate.ThisYear</code>, <code>PayoutDate.PreviousDay</code>, <code>PayoutDate.PreviousWeek</code>, <code>PayoutDate.PreviousMonth</code>, <code>PayoutDate.PreviousQuarter</code>, <code>PayoutDate.PreviousHalfYear</code>, <code>PayoutDate.PreviousYear</code>, <code>PayoutDate.CustomDate</code>, <code>PayoutDate.Last_7_Days</code>, <code>PayoutDate.Last_30_Days</code>, <code>PayoutDate.Last_90_Days</code>.'
+      in: query
+      required: false
+      schema:
+        type: string
+      example: PayoutDate.Today
+    from_date:
+      name: from_date
+      description: If the given <code>filter_by</code> is <code>PayoutDate.CustomDate</code>, this param is required. (e.g., <code>2024-06-06</code>)
+      in: query
+      required: false
+      schema:
+        type: string
+      example: '2024-06-06'
+    to_date:
+      name: to_date
+      description: If the given <code>filter_by</code> is <code>PayoutDate.CustomDate</code>, this param is required. (e.g., <code>2024-08-30</code>)
+      in: query
+      required: false
+      schema:
+        type: string
+      example: '2024-06-30'
+    per_page:
+      name: per_page
+      description: Indicates the number of records to list per page. The default value is <code>25</code> per page, and the maximum limit is <code>200</code>.
+      in: query
+      required: false
+      schema:
+        type: integer
+      example: 25
+    page:
+      name: page
+      description: Indicates the page number of the list of records. (e.g., <code>1</code>)
+      in: query
+      required: false
+      schema:
+        type: integer
+      example: 1
+  schemas:
+    gendoc-attributes-schema:
+      $ref: '#/components/schemas/payouts-response'
+    payouts-response:
+      type: object
+      properties:
+        payout_id:
+          $ref: '#/components/schemas/payout_id'
+        amount:
+          $ref: '#/components/schemas/amount'
+        currency:
+          $ref: '#/components/schemas/currency'
+        status:
+          $ref: '#/components/schemas/status'
+        failure_code:
+          $ref: '#/components/schemas/failure_code'
+        failure_message:
+          $ref: '#/components/schemas/failure_message'
+        statement_descriptor:
+          $ref: '#/components/schemas/statement_descriptor'
+        initiated_time:
+          $ref: '#/components/schemas/initiated_time'
+        processed_date:
+          $ref: '#/components/schemas/processed_date'
+        type:
+          $ref: '#/components/schemas/type'
+        payout_bank_reference_id:
+          $ref: '#/components/schemas/payout_bank_reference_id'
+        bank_account_details:
+          $ref: '#/components/schemas/bank_account_details'
+    payouts-list-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        payouts:
+          type: array
+          items:
+            $ref: '#/components/schemas/payouts-response'
+        page_context:
+          $ref: '#/components/schemas/payouts-list-page-context'
+    payout_id:
+      description: A unique identifier for the payout.
+      type: string
+      example: '193000002315107'
+    amount:
+      description: The payout amount.
+      type: string
+      example: '100.90'
+    currency:
+      description: The currency of the payout amount, represented by a 3-letter ISO currency code <br>(e.g., <code class="url">INR</code>).
+      type: string
+      example: INR
+    status:
+      description: The status of the payout. It can be <code>initiated</code>, <code>paid</code> or <code>failed</code>.
+      type: string
+      example: paid
+    failure_code:
+      description: The failure code of the payout.
+      type: string
+      example: ''
+    failure_message:
+      description: The failure message of the payout.
+      type: string
+      example: ''
+    statement_descriptor:
+      description: The payout descriptor.
+      type: string
+      example: ZOHO PAYMENTS
+    initiated_time:
+      description: The timestamp (milliseconds) indicating when the payout was initiated.
+      type: string
+      example: '1750681308996'
+    payout_initiated_time:
+      description: The date (seconds) on which the payout was initiated.
+      type: integer
+      format: int64
+      example: 1718778179
+    processed_date:
+      description: The date on which payout was settled.
+      type: string
+      example: Jun 23, 2025
+    payout_processed_date:
+      description: The date (seconds) on which payout was settled.
+      type: integer
+      format: int64
+      example: 1718778557
+    type:
+      description: 'The payout type. It can be: <code>deposit</code> or <code>withdrawal</code>.'
+      type: string
+      example: deposit
+    payout_bank_reference_id:
+      description: The bank reference identifier of the payout.
+      type: string
+      example: '040956641001'
+    bank_account_details:
+      $ref: '#/components/schemas/payout-bank-account-details-response'
+    bank_name:
+      description: Name of the destination bank for the payout.
+      type: string
+      example: ICICI BANK LIMITED
+    account_number_last_four_digits:
+      description: The last four digits of the payout account number.
+      type: string
+      example: '1193'
+    account_holder_name:
+      description: The account holder name of the payout processed account.
+      type: string
+      example: Zylker
+    routing_number:
+      description: The IFSC code of the payout processed account number.
+      type: string
+      example: ICIC0000001
+    processing_fee:
+      description: The processing fee of the payout.
+      type: number
+      format: double
+      example: 0
+    fee:
+      description: The fee for the payout.
+      type: string
+      example: '0.00'
+    fee_rate:
+      description: The fee rate of the payout.
+      type: string
+      example: '0.00'
+    comment_id:
+      description: A unique identifier for the payout history.
+      type: string
+      example: '193000001315107'
+    operation_type:
+      description: The type of operation done for the payout. It can be <code>created</code>, <code>updated</code> or <code>deleted</code>.
+      type: string
+      example: updated
+    action_type:
+      description: The type of action done for the payout. It can be <code>initiated</code>, <code>updated</code>, <code>paid</code> or <code>failed</code>.
+      type: string
+      example: paid
+    payout_type:
+      description: The type of the payout history. It can be <code>system_generated</code> or <code>manually_added</code>.
+      type: string
+      example: system_generated
+    description:
+      description: The description of the payout history.
+      type: string
+      example: Payout initiated.
+    created_by:
+      description: The name of the user who created the comment.
+      type: string
+      example: Zoho Payments
+    created_time:
+      description: The date (seconds) on which the payout comment was created.
+      type: integer
+      format: int64
+      example: 1751876104
+    account_type:
+      description: The payout destination account type.
+      type: string
+      example: bank_account
+    country:
+      description: The country of the payout destination account.
+      type: string
+      example: IN
+    payout_method:
+      description: The payout method.
+      type: string
+      example: standard
+    transaction_id:
+      description: A unique identifier for the transaction. For a charge, this will be payment_id; for a refund, refund_id; and similarly for other transaction types.
+      type: string
+      example: '193000001315999'
+    parent_transaction_id:
+      description: The identifier of the parent transaction. This field helps to trace the transaction back to its source, for refunds and chargebacks, it will be payment_id; for chargeback reversals, chargeback_id; and for refund reversals, refund_id.
+      type: string
+      example: ''
+    transaction_net_amount:
+      description: The net amount of the transaction.
+      type: number
+      format: double
+      example: 1
+    transaction_amount:
+      description: The transaction amount.
+      type: number
+      format: double
+      example: 1
+    transaction_fee:
+      description: The fee amount deducted as part of the transaction.
+      type: number
+      format: double
+      example: 0
+    transaction_tax:
+      description: The tax amount deducted as part of the transaction.
+      type: number
+      format: double
+      example: 0
+    transaction_type:
+      description: The transaction type.
+      type: string
+      example: charge
+    transaction_time:
+      description: The timestamp (milliseconds) indicating when the transaction occurred.
+      type: string
+      example: '1750169887261'
+    transaction_currency:
+      description: The currency in which the transaction occurred, represented by a 3-letter ISO currency code <br>(e.g., <code class="url">INR</code>)
+      type: string
+      example: INR
+    customer_id:
+      description: A unique identifier for the customer.
+      type: string
+      example: '1930000000724207'
+    customer_name:
+      description: Name of the customer.
+      type: string
+      example: Charles
+    transaction_description:
+      description: Description of the transaction.
+      type: string
+      example: Requested by Customer
+    page:
+      type: integer
+      description: Indicates the page number of the list of records. (e.g., <code>1</code>)
+      example: 1
+    per_page:
+      type: integer
+      description: Indicates the number of records to list per page. The default value is <code>25</code> per page, and the maximum limit is <code>200</code>.
+      example: 25
+    total:
+      type: integer
+      description: Total number of records
+      example: 44
+    total_pages:
+      type: integer
+      description: Total number of pages
+      example: 2
+    has_more_page:
+      type: boolean
+      description: Indicates if there are more pages available
+      example: true
+    group_by:
+      type: string
+      description: The field used for grouping
+      example: ''
+    withdrawals_count:
+      type: integer
+      description: Total count of withdrawals
+      example: 0
+    instant_payouts_count:
+      type: integer
+      description: Total count of instant payouts
+      example: 0
+    sort_column:
+      type: string
+      description: The column used for sorting
+      example: initiated_time
+    sort_order:
+      type: string
+      description: The sort order (A for ascending, D for descending)
+      example: D
+    zoho_sheet_url:
+      type: string
+      description: The URL for Zoho Sheet
+      example: ''
+    charge_transaction_type:
+      description: The transaction type of the charge.
+      type: string
+      example: charge
+    charge_count:
+      description: The total number of charges in the payout.
+      type: integer
+      example: 4
+    charge_net_amount:
+      description: The sum of net amounts of the charges in the payout.
+      type: number
+      format: double
+      example: 3.98
+    charge_fee:
+      description: The fee amount deducted as part of the charges in the payout.
+      type: number
+      format: double
+      example: -0.02
+    charge_tax:
+      description: The tax amount deducted as part of the charges in the payout.
+      type: number
+      format: double
+      example: 0
+    charge_amount:
+      description: The total transaction amount for the charges in the payout.
+      type: number
+      format: double
+      example: 4
+    refund_transaction_type:
+      description: The transaction type of the refund.
+      type: string
+      example: refund
+    refund_count:
+      description: The total number of refunds in the payout.
+      type: integer
+      example: 0
+    refund_net_amount:
+      description: The sum of net amounts of the refunds in the payout.
+      type: number
+      format: double
+      example: 0
+    refund_fee:
+      description: The fee amount deducted as part of the refunds in the payout.
+      type: number
+      format: double
+      example: 0
+    refund_tax:
+      description: The tax amount deducted as part of the refunds in the payout.
+      type: number
+      format: double
+      example: 0
+    refund_amount:
+      description: The total transaction amount for the refunds in the payout.
+      type: number
+      format: double
+      example: 0
+    adjustment_transaction_type:
+      description: The transaction type of the adjustment.
+      type: string
+      example: adjustment
+    adjustment_count:
+      description: The total number of transactions in the payout, excluding charges and refunds.
+      type: integer
+      example: 0
+    adjustment_net_amount:
+      description: The sum of net amounts of the transactions in the payout, excluding charges and refunds.
+      type: number
+      format: double
+      example: 0
+    adjustment_fee:
+      description: The fee amount deducted as part of the transactions in the payout, excluding charges and refunds.
+      type: number
+      format: double
+      example: 0
+    adjustment_tax:
+      description: The tax amount deducted as part of the transactions in the payout, excluding charges and refunds.
+      type: number
+      format: double
+      example: 0
+    adjustment_amount:
+      description: The total amount of the transactions in the payout, excluding charges and refunds.
+      type: number
+      format: double
+      example: 0
+    charge:
+      type: object
+      properties:
+        transaction_type:
+          $ref: '#/components/schemas/charge_transaction_type'
+        count:
+          $ref: '#/components/schemas/charge_count'
+        net_amount:
+          $ref: '#/components/schemas/charge_net_amount'
+        fee:
+          $ref: '#/components/schemas/charge_fee'
+        tax:
+          $ref: '#/components/schemas/charge_tax'
+        amount:
+          $ref: '#/components/schemas/charge_amount'
+    refund:
+      type: object
+      properties:
+        transaction_type:
+          $ref: '#/components/schemas/refund_transaction_type'
+        count:
+          $ref: '#/components/schemas/refund_count'
+        net_amount:
+          $ref: '#/components/schemas/refund_net_amount'
+        fee:
+          $ref: '#/components/schemas/refund_fee'
+        tax:
+          $ref: '#/components/schemas/refund_tax'
+        amount:
+          $ref: '#/components/schemas/refund_amount'
+    adjustment:
+      type: object
+      properties:
+        transaction_type:
+          $ref: '#/components/schemas/adjustment_transaction_type'
+        count:
+          $ref: '#/components/schemas/adjustment_count'
+        net_amount:
+          $ref: '#/components/schemas/adjustment_net_amount'
+        fee:
+          $ref: '#/components/schemas/adjustment_fee'
+        tax:
+          $ref: '#/components/schemas/adjustment_tax'
+        amount:
+          $ref: '#/components/schemas/adjustment_amount'
+    account_details:
+      type: object
+      properties:
+        transaction_type:
+          $ref: '#/components/schemas/bank_name'
+        account_holder:
+          $ref: '#/components/schemas/account_holder_name'
+        account_number_last_four_digits:
+          $ref: '#/components/schemas/account_number_last_four_digits'
+        routing_number:
+          $ref: '#/components/schemas/routing_number'
+        type:
+          $ref: '#/components/schemas/account_type'
+        country:
+          $ref: '#/components/schemas/country'
+        currency:
+          $ref: '#/components/schemas/currency'
+    payout-transaction-summary-response:
+      type: object
+      properties:
+        charge:
+          $ref: '#/components/schemas/charge'
+        refund:
+          $ref: '#/components/schemas/refund'
+        adjustment:
+          $ref: '#/components/schemas/adjustment'
+        total_amount:
+          $ref: '#/components/schemas/amount'
+    payout-comments-response:
+      type: array
+      items:
+        type: object
+        properties:
+          comment_id:
+            $ref: '#/components/schemas/comment_id'
+          amount:
+            $ref: '#/components/schemas/amount'
+          operation_type:
+            $ref: '#/components/schemas/operation_type'
+          action_type:
+            $ref: '#/components/schemas/action_type'
+          type:
+            $ref: '#/components/schemas/payout_type'
+          description:
+            $ref: '#/components/schemas/description'
+          created_by:
+            $ref: '#/components/schemas/created_by'
+          created_time:
+            $ref: '#/components/schemas/created_time'
+    payout-bank-account-details-response:
+      type: object
+      properties:
+        bank_name:
+          $ref: '#/components/schemas/bank_name'
+        account_number_last_four_digits:
+          $ref: '#/components/schemas/account_number_last_four_digits'
+        account_holder_name:
+          $ref: '#/components/schemas/account_holder_name'
+        routing_number:
+          $ref: '#/components/schemas/routing_number'
+    payout-retrieve-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        payout:
+          type: object
+          properties:
+            payout_id:
+              $ref: '#/components/schemas/payout_id'
+            amount:
+              $ref: '#/components/schemas/amount'
+            processing_fee:
+              $ref: '#/components/schemas/processing_fee'
+            currency:
+              $ref: '#/components/schemas/currency'
+            status:
+              $ref: '#/components/schemas/status'
+            failure_code:
+              $ref: '#/components/schemas/failure_code'
+            failure_message:
+              $ref: '#/components/schemas/failure_message'
+            statement_descriptor:
+              $ref: '#/components/schemas/statement_descriptor'
+            initiated_time:
+              $ref: '#/components/schemas/payout_initiated_time'
+            processed_date:
+              $ref: '#/components/schemas/payout_processed_date'
+            type:
+              $ref: '#/components/schemas/type'
+            fee:
+              $ref: '#/components/schemas/fee'
+            fee_rate:
+              $ref: '#/components/schemas/fee_rate'
+            payout_method:
+              $ref: '#/components/schemas/payout_method'
+            payout_bank_reference_id:
+              $ref: '#/components/schemas/payout_bank_reference_id'
+            comments:
+              $ref: '#/components/schemas/payout-comments-response'
+            transaction_summary:
+              $ref: '#/components/schemas/payout-transaction-summary-response'
+            account_details:
+              $ref: '#/components/schemas/account_details'
+    select-column:
+      type: object
+      properties:
+        field:
+          type: string
+          description: The field name
+          example: payout_id
+        group:
+          type: string
+          description: The group name
+          example: payout
+    payouts-list-page-context:
+      type: object
+      description: Pagination context for the response
+      properties:
+        page:
+          $ref: '#/components/schemas/page'
+        per_page:
+          $ref: '#/components/schemas/per_page'
+        total:
+          $ref: '#/components/schemas/total'
+        total_pages:
+          $ref: '#/components/schemas/total_pages'
+        has_more_page:
+          $ref: '#/components/schemas/has_more_page'
+        select_columns:
+          type: array
+          description: List of columns selected in the response
+          items:
+            $ref: '#/components/schemas/select-column'
+          example:
+            - field: payout_id
+              group: payout
+            - field: amount
+              group: payout
+            - field: currency
+              group: payout
+            - field: status
+              group: payout
+            - field: failure_code
+              group: payout
+            - field: failure_message
+              group: payout
+            - field: statement_descriptor
+              group: payout
+            - field: initiated_time
+              group: payout
+            - field: arrival_date
+              group: payout
+            - field: processed_date
+              group: payout
+            - field: reference_id
+              group: payout
+            - field: processor
+              group: payout
+            - field: bank_name
+              group: payout
+            - field: account_number_last_four_digits
+              group: payout
+            - field: type
+              group: payout
+            - field: account_holder_name
+              group: payout
+            - field: routing_number
+              group: payout
+            - field: payout_bank_reference_id
+              group: payout
+            - field: payout_method
+              group: payout
+        group_by:
+          $ref: '#/components/schemas/group_by'
+        withdrawals_count:
+          $ref: '#/components/schemas/withdrawals_count'
+        instant_payouts_count:
+          $ref: '#/components/schemas/instant_payouts_count'
+        sort_column:
+          $ref: '#/components/schemas/sort_column'
+        sort_order:
+          $ref: '#/components/schemas/sort_order'
+        zoho_sheet_url:
+          $ref: '#/components/schemas/zoho_sheet_url'
+    payout-transactions-retrieve-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        transactions:
+          type: array
+          items:
+            type: object
+            properties:
+              payout_id:
+                $ref: '#/components/schemas/payout_id'
+              transaction_id:
+                $ref: '#/components/schemas/transaction_id'
+              parent_transaction_id:
+                $ref: '#/components/schemas/parent_transaction_id'
+              net_amount:
+                $ref: '#/components/schemas/transaction_net_amount'
+              amount:
+                $ref: '#/components/schemas/transaction_amount'
+              fee:
+                $ref: '#/components/schemas/transaction_fee'
+              tax:
+                $ref: '#/components/schemas/transaction_tax'
+              transaction_type:
+                $ref: '#/components/schemas/transaction_type'
+              transaction_time:
+                $ref: '#/components/schemas/transaction_type'
+              currency:
+                $ref: '#/components/schemas/transaction_currency'
+              customer_id:
+                $ref: '#/components/schemas/customer_id'
+              customer_name:
+                $ref: '#/components/schemas/customer_name'
+              description:
+                $ref: '#/components/schemas/transaction_description'
+        page_context:
+          $ref: '#/components/schemas/payouts-transactions-page-context'
+    payouts-transactions-page-context:
+      type: object
+      description: Pagination context for the payout transactions response
+      properties:
+        page:
+          $ref: '#/components/schemas/page'
+        per_page:
+          $ref: '#/components/schemas/per_page'
+        total:
+          $ref: '#/components/schemas/total'
+        total_pages:
+          $ref: '#/components/schemas/total_pages'
+        has_more_page:
+          $ref: '#/components/schemas/has_more_page'
+        select_columns:
+          type: array
+          description: List of columns selected in the response
+          items:
+            $ref: '#/components/schemas/select-column'
+          example:
+            - field: payout_mapping_id
+              group: payout
+            - field: transaction_id
+              group: payout
+            - field: parent_transaction_id
+              group: payout
+            - field: net_amount
+              group: payout
+            - field: amount
+              group: payout
+            - field: fee
+              group: payout
+            - field: transaction_type
+              group: payout
+            - field: transaction_time
+              group: payout
+            - field: debit_or_credit
+              group: payout
+            - field: currency
+              group: payout
+            - field: payout_id
+              group: payout
+            - field: customer_id
+              group: payout
+            - field: customer_name
+              group: payout
+            - field: description
+              group: payout
+            - field: tax_amount
+              group: payout
+            - field: created_time
+              group: payout
+        group_by:
+          $ref: '#/components/schemas/group_by'
+        sort_column:
+          $ref: '#/components/schemas/sort_column'
+        sort_order:
+          $ref: '#/components/schemas/sort_order'
+        zoho_sheet_url:
+          $ref: '#/components/schemas/zoho_sheet_url'
+  securitySchemes:
+    Zoho_Auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://accounts.zoho.in/oauth/v2/auth
+          scopes:
+            ZohoPay.payouts.READ: Fetch Payouts Details

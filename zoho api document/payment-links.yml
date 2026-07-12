@@ -1,0 +1,551 @@
+openapi: 3.0.0
+info:
+  title: Payment Links
+  description: The Payment Links API enables businesses to generate payment links, allowing customers to make secure payments using their preferred payment method. <a href="https://www.zoho.com/in/payments/developerdocs/no-code-solutions/#payment-links" target="_blank">Learn more about Payment Links in our developer documentation</a>.
+  contact: {}
+  version: 1.0.0
+servers:
+  - url: https://payments.zoho.in/api/v1
+    description: API Endpoint
+tags:
+  - name: payment-links
+    description: Payment Link Module
+paths:
+  /paymentlinks:
+    post:
+      tags:
+        - payment-links
+      summary: Create Payment Link
+      description: This API endpoint allows you to create payment links in Zoho Payments. You can generate unique links that let you collect payments from customers easily.
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/payment-link-create-request'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payment-link-create-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.CREATE
+    get:
+      tags:
+        - payment-links
+      summary: Retrieve Payment Link
+      description: This API endpoint allows you to retrieve the details of a specific payment link.
+      parameters:
+        - name: payment_link_id
+          description: A unique identifier for the payment link.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 173000002315107
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payment-link-payment-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.READ
+  /paymentlinks/{payment_link_id}:
+    put:
+      tags:
+        - payment-links
+      summary: Update Payment Link
+      description: This API endpoint allows you to update the payment link. You can modify the customer email, phone number, reference, description, and expiry date. The link must be active to make modifications.
+      parameters:
+        - name: payment_link_id
+          description: A unique identifier for the payment link.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 173000002315107
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/payment-link-update-request'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payment-link-update-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.UPDATE
+  /paymentlinks/{payment_link_id}/cancel:
+    put:
+      tags:
+        - payment-links
+      summary: Cancel Payment Link
+      description: This API endpoint allows you to cancel the payment link. Once cancelled, it cannot be undone.
+      parameters:
+        - name: payment_link_id
+          description: A unique identifier for the payment link.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 173000002315107
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payment-link-cancel-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.UPDATE
+components:
+  parameters:
+    account_id:
+      name: account_id
+      description: The Zoho Payments account ID.
+      in: query
+      required: true
+      schema:
+        type: number
+        format: long
+      example: 23137556
+  schemas:
+    gendoc-attributes-schema:
+      $ref: '#/components/schemas/payment-link-response'
+    payment-link-response:
+      type: object
+      properties:
+        payment_link_id:
+          $ref: '#/components/schemas/payment_link_id'
+        url:
+          $ref: '#/components/schemas/url'
+        expires_at:
+          $ref: '#/components/schemas/expires_at'
+        amount:
+          $ref: '#/components/schemas/amount_response'
+        amount_paid:
+          $ref: '#/components/schemas/amount_paid'
+        currency:
+          $ref: '#/components/schemas/currency'
+        status:
+          $ref: '#/components/schemas/status'
+        email:
+          $ref: '#/components/schemas/email'
+        reference_id:
+          $ref: '#/components/schemas/reference_id'
+        description:
+          $ref: '#/components/schemas/description'
+        return_url:
+          $ref: '#/components/schemas/return_url'
+        phone:
+          $ref: '#/components/schemas/phone'
+        phone_country_code:
+          $ref: '#/components/schemas/phone_country_code'
+        created_time:
+          $ref: '#/components/schemas/created_time'
+        created_by_id:
+          $ref: '#/components/schemas/created_by_id'
+        created_by:
+          $ref: '#/components/schemas/created_by'
+        last_modified_by_id:
+          $ref: '#/components/schemas/last_modified_by_id'
+        last_modified:
+          $ref: '#/components/schemas/last_modified'
+    amount:
+      description: The payment amount.
+      type: number
+      format: double
+      example: 100.5
+    amount_paid:
+      description: The amount paid using the payment link.
+      type: string
+      example: '0.00'
+    phone:
+      description: The phone number associated with the payment link.
+      type: string
+      example: 98XXXXXXXX
+    phone_country_code:
+      description: The phone country code associated with the payment link (defaults to IN if not provided).
+      type: string
+      example: IN
+    currency:
+      description: The currency of the payment amount, represented by a 3-letter ISO currency code <br>(e.g., <code class="url">INR</code>).
+      type: string
+      example: INR
+    reference_id:
+      description: An alphanumeric identifier that helps in identifying the payment. The maximum length can be 100 characters.
+      type: string
+      example: 1234567890IUEGS
+    description:
+      description: The description of the payment link. The maximum length of the description can be 500 characters.
+      type: string
+      example: 'Payment for Order #12345'
+    email:
+      description: Email address of the customer.
+      type: string
+      example: xxx@abc.com
+    expires_at:
+      description: The expiration date of the payment link in <code>yyyy-MM-dd</code> format. If no expiry is set, the payment link will expire in 30 days by default.
+      type: string
+      example: '2025-03-14'
+    notify_user:
+      description: This parameter is <strong>deprecated</strong>. Use <code>notify_customer.email</code> to notify the customer.
+      type: boolean
+      deprecated: true
+    notify_customer:
+      description: Specifies the notification channels to be used for notifying the customer.
+      type: object
+      properties:
+        email:
+          description: Indicates whether a notification email should be sent to the customer.
+          type: boolean
+          example: true
+        sms:
+          description: Indicates whether the customer will receive SMS notifications (Indian numbers only, +91). Enable SMS in Settings > Notification Preferences > SMS.<br/><strong>Note:</strong> SMS notifications are not sent in sandbox.
+          type: boolean
+          example: true
+    created_time:
+      description: The timestamp (milliseconds) indicating when the payment link was created.
+      type: integer
+      format: int64
+      example: 1708950672
+    date:
+      description: The timestamp (milliseconds) indicating when the payment was paid.
+      type: integer
+      format: int64
+      example: 1708950750
+    created_by_id:
+      description: The user ID of the person who created the payment link.
+      type: string
+      example: '173000002314885'
+    created_by:
+      description: The name of the user who created the payment link.
+      type: string
+      example: Akash
+    last_modified_by_id:
+      description: The user ID of the person who last modified the payment link.
+      type: string
+      example: '173000002314885'
+    last_modified:
+      description: The user name of the person who last modified the payment link.
+      type: string
+      example: Akash
+    payment_link_id:
+      description: A unique identifier for the payment link.
+      type: string
+      example: '173000002315107'
+    url:
+      description: The generated URL of the payment link.
+      type: string
+      example: https://payments.zoho.in/paymentlink/b0ec9b455584e8ee1dc0fd479f7ad4601ea39169f8aaf9991b83
+    return_url:
+      description: An URL to redirect the customer after a successful payment.
+      type: string
+      example: https://example.com/success
+    amount_response:
+      description: The payment amount.
+      type: string
+      example: '100.50'
+    status:
+      description: The status of the payment link. It can be <code>active</code>, <code>paid</code>, <code>canceled</code> or <code>expired</code>.
+      type: string
+      example: active
+    payment_id:
+      description: A unique ID for payments made through Zoho Payments.
+      type: string
+      example: '173000002314883'
+    payments:
+      description: Payments completed using the Payment link.
+      type: array
+      items:
+        type: object
+        properties:
+          payment_id:
+            $ref: '#/components/schemas/payment_id'
+          amount:
+            $ref: '#/components/schemas/amount_response'
+          status:
+            $ref: '#/components/schemas/status'
+            example: succeeded
+          date:
+            $ref: '#/components/schemas/date'
+    payment-link-create-request:
+      required:
+        - amount
+        - currency
+        - description
+      type: object
+      example:
+        amount: 100.5
+        currency: INR
+        email: xxx@abc.com
+        phone: 98XXXXXXXX
+        phone_country_code: IN
+        reference_id: 1234567890IUEGS
+        description: 'Payment for Order #12345'
+        expires_at: '2025-03-14'
+        notify_customer:
+          email: true
+          sms: true
+        return_url: https://example.com/success
+      properties:
+        amount:
+          description: The amount to be charged, with support for decimal places.
+          type: number
+          format: double
+          example: 100.5
+        currency:
+          $ref: '#/components/schemas/currency'
+        email:
+          $ref: '#/components/schemas/email'
+        phone:
+          $ref: '#/components/schemas/phone'
+        phone_country_code:
+          $ref: '#/components/schemas/phone_country_code'
+        reference_id:
+          $ref: '#/components/schemas/reference_id'
+        description:
+          $ref: '#/components/schemas/description'
+        expires_at:
+          $ref: '#/components/schemas/expires_at'
+        notify_user:
+          $ref: '#/components/schemas/notify_user'
+          deprecated: true
+        notify_customer:
+          $ref: '#/components/schemas/notify_customer'
+        return_url:
+          description: An URL to redirect the customer after a successful payment. The return URL contains a set of query parameters with payment information. Refer to our developer docs for <a href="https://www.zoho.com/in/payments/developerdocs/signature-verification/" target="_blank">signature verification.</a>
+          type: string
+          example: https://example.com/success
+    payment-link-create-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: Payment link created successfully
+          readOnly: true
+        payment_links:
+          $ref: '#/components/schemas/payment-link-response'
+    payment-link-update-request:
+      type: object
+      example:
+        reference_id: 1234567890IUEGS
+        email: xxx@abc.com
+        phone: 98XXXXXXXX
+        phone_country_code: IN
+        description: 'Payment for Order #12345'
+        expires_at: '2025-03-14'
+        notify_customer:
+          email: true
+          sms: true
+        return_url: https://example.com/success
+      properties:
+        reference_id:
+          $ref: '#/components/schemas/reference_id'
+        email:
+          $ref: '#/components/schemas/email'
+        phone:
+          $ref: '#/components/schemas/phone'
+        phone_country_code:
+          $ref: '#/components/schemas/phone_country_code'
+        description:
+          $ref: '#/components/schemas/description'
+        expires_at:
+          $ref: '#/components/schemas/expires_at'
+        notify_user:
+          $ref: '#/components/schemas/notify_user'
+          deprecated: true
+        notify_customer:
+          $ref: '#/components/schemas/notify_customer'
+        return_url:
+          $ref: '#/components/schemas/return_url'
+    payment-link-update-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: Payment link updated
+          readOnly: true
+        payment_links:
+          type: object
+          properties:
+            payment_link_id:
+              $ref: '#/components/schemas/payment_link_id'
+            url:
+              $ref: '#/components/schemas/url'
+            expires_at:
+              $ref: '#/components/schemas/expires_at'
+            amount:
+              $ref: '#/components/schemas/amount_response'
+            amount_paid:
+              $ref: '#/components/schemas/amount_paid'
+            currency:
+              $ref: '#/components/schemas/currency'
+            status:
+              $ref: '#/components/schemas/status'
+            email:
+              $ref: '#/components/schemas/email'
+            reference_id:
+              $ref: '#/components/schemas/reference_id'
+            description:
+              $ref: '#/components/schemas/description'
+            return_url:
+              $ref: '#/components/schemas/return_url'
+            phone:
+              $ref: '#/components/schemas/phone'
+            phone_country_code:
+              $ref: '#/components/schemas/phone_country_code'
+            created_time:
+              $ref: '#/components/schemas/created_time'
+            created_by_id:
+              $ref: '#/components/schemas/created_by_id'
+            created_by:
+              $ref: '#/components/schemas/created_by'
+            last_modified_by_id:
+              $ref: '#/components/schemas/last_modified_by_id'
+            last_modified:
+              $ref: '#/components/schemas/last_modified'
+    payment-link-payment-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        payment_links:
+          type: object
+          properties:
+            payment_link_id:
+              $ref: '#/components/schemas/payment_link_id'
+            url:
+              $ref: '#/components/schemas/url'
+            expires_at:
+              $ref: '#/components/schemas/expires_at'
+            amount:
+              $ref: '#/components/schemas/amount_response'
+            amount_paid:
+              $ref: '#/components/schemas/amount_response'
+            currency:
+              $ref: '#/components/schemas/currency'
+            status:
+              $ref: '#/components/schemas/status'
+              example: paid
+            email:
+              $ref: '#/components/schemas/email'
+            reference_id:
+              $ref: '#/components/schemas/reference_id'
+            description:
+              $ref: '#/components/schemas/description'
+            return_url:
+              $ref: '#/components/schemas/return_url'
+            phone:
+              $ref: '#/components/schemas/phone'
+            phone_country_code:
+              $ref: '#/components/schemas/phone_country_code'
+            created_by:
+              $ref: '#/components/schemas/created_by'
+            created_by_id:
+              $ref: '#/components/schemas/created_by_id'
+            last_modified_by_id:
+              $ref: '#/components/schemas/last_modified_by_id'
+            last_modified:
+              $ref: '#/components/schemas/last_modified'
+            created_time:
+              $ref: '#/components/schemas/created_time'
+            payments:
+              $ref: '#/components/schemas/payments'
+    payment-link-cancel-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: Payment link Cancelled
+          readOnly: true
+        payment_links:
+          type: object
+          properties:
+            payment_link_id:
+              $ref: '#/components/schemas/payment_link_id'
+            url:
+              $ref: '#/components/schemas/url'
+            expires_at:
+              $ref: '#/components/schemas/expires_at'
+            amount:
+              $ref: '#/components/schemas/amount_response'
+            amount_paid:
+              $ref: '#/components/schemas/amount_paid'
+            currency:
+              $ref: '#/components/schemas/currency'
+            status:
+              $ref: '#/components/schemas/status'
+              example: canceled
+            email:
+              $ref: '#/components/schemas/email'
+            reference_id:
+              $ref: '#/components/schemas/reference_id'
+            description:
+              $ref: '#/components/schemas/description'
+            return_url:
+              $ref: '#/components/schemas/return_url'
+            phone:
+              $ref: '#/components/schemas/phone'
+            phone_country_code:
+              $ref: '#/components/schemas/phone_country_code'
+            created_time:
+              $ref: '#/components/schemas/created_time'
+            created_by_id:
+              $ref: '#/components/schemas/created_by_id'
+            created_by:
+              $ref: '#/components/schemas/created_by'
+            last_modified_by_id:
+              $ref: '#/components/schemas/last_modified_by_id'
+            last_modified:
+              $ref: '#/components/schemas/last_modified'
+  securitySchemes:
+    Zoho_Auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://accounts.zoho.in/oauth/v2/auth
+          scopes:
+            ZohoPay.payments.CREATE: Create Payment Link
+            ZohoPay.payments.READ: Fetch Payment Link Details
+            ZohoPay.payments.UPDATE: Update Payment Link

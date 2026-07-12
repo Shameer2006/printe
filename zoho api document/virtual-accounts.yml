@@ -1,0 +1,882 @@
+openapi: 3.0.0
+info:
+  title: Collect
+  description: Accept payments through virtual accounts for easy tracking and reduced manual reconciliation with Collect.
+  contact: {}
+  version: 1.0.0
+servers:
+  - url: https://payments.zoho.in/api/v1
+    description: API Endpoint
+tags:
+  - name: virtual-accounts
+    description: Virtual Accounts Module
+paths:
+  /virtualaccounts:
+    post:
+      tags:
+        - virtual-accounts
+      summary: Create Virtual Account
+      description: Create a new virtual account to collect payments via bank transfer.
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/virtual-account-create-request'
+            example:
+              description: Testing virtual account creation.
+              customer_id: '1987000007005031'
+              maximum_amount: 10000
+              minimum_amount: 100
+              expires_at: '2026-10-25'
+              reference_number: zxjnijnwdjf
+              meta_data:
+                - key: Key1
+                  value: Value1
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/virtual-account-create-response'
+              example:
+                code: 0
+                message: Virtual Account Created
+                virtual_account:
+                  virtual_account_id: '1987000007005239'
+                  account_number: ZOHOES5645DD2FAKW
+                  ifsc_code: ICIC0000106
+                  beneficiary_name: Zoho Payments
+                  description: Testing virtual account creation.
+                  customer_id: '1987000007005031'
+                  minimum_amount: 100
+                  maximum_amount: 10000
+                  amount_paid: '0.00'
+                  amount_paid_formatted: ₹0.00
+                  meta_data:
+                    - key: Key1
+                      value: Value1
+                  reference_number: zxjnijnwdjf
+                  status: active
+                  status_formatted: Active
+                  expires_at: '2026-10-25'
+                  expires_at_formatted: Oct 25, 2026, 11:59 PM
+                  created_time: 1761573181
+                  created_time_formatted: Oct 27, 2025, 07:23 PM
+                  last_modified_time: 1761573181
+                  last_modified_time_formatted: Oct 27, 2025, 07:23 PM
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.CREATE
+  /virtualaccounts/{virtual_account_id}:
+    get:
+      tags:
+        - virtual-accounts
+      summary: Retrieve Virtual Account
+      description: Retrieve the details of a virtual account using its ID.
+      parameters:
+        - $ref: '#/components/parameters/virtual_account_id'
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/virtual-account-single-response'
+              example:
+                code: 0
+                message: success
+                virtual_account:
+                  virtual_account_id: '1987000007005239'
+                  account_number: ZOHOESAAAD5QKQ2FAKW
+                  ifsc_code: ICIC0000106
+                  beneficiary_name: Zoho Payments
+                  description: Testing virtual account creation.
+                  customer_id: '1987000007005031'
+                  minimum_amount: 100
+                  maximum_amount: 10000
+                  amount_paid: '0.00'
+                  amount_paid_formatted: ₹0.00
+                  meta_data:
+                    - key: Key1
+                      value: Value1
+                  reference_number: zxjnijnwdjf
+                  status: active
+                  status_formatted: Active
+                  expires_at: '2026-10-25'
+                  expires_at_formatted: Oct 25, 2026, 11:59 PM
+                  created_time: 1761573181
+                  created_time_formatted: Oct 27, 2025, 07:23 PM
+                  last_modified_time: 1761573181
+                  last_modified_time_formatted: Oct 27, 2025, 07:23 PM
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.READ
+    put:
+      tags:
+        - virtual-accounts
+      summary: Update Virtual Account
+      description: Update the description, limits, or expiry of a virtual account.
+      parameters:
+        - $ref: '#/components/parameters/virtual_account_id'
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/virtual-account-update-request'
+            example:
+              description: Testing virtual account update
+              maximum_amount: 900
+              minimum_amount: 10
+              expires_at: '2026-07-12'
+              reference_number: zx00jnwdjf
+              meta_data:
+                - key: Key1
+                  value: Value1
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/virtual-account-update-response'
+              example:
+                code: 0
+                message: Virtual Account Updated
+                virtual_account:
+                  virtual_account_id: '1987000007018050'
+                  account_number: ZOHOESAAAD5QKQ2F5WK
+                  ifsc_code: ICIC0000106
+                  beneficiary_name: Zoho Payments
+                  description: Testing virtual account update
+                  customer_id: '1987000007005031'
+                  minimum_amount: 10
+                  maximum_amount: 900
+                  amount_paid: '0.00'
+                  amount_paid_formatted: ₹0.00
+                  meta_data:
+                    - key: Key1
+                      value: Value1
+                  reference_number: zx00jnwdjf
+                  status: active
+                  status_formatted: Active
+                  expires_at: '2026-07-12'
+                  expires_at_formatted: Jul 12, 2026, 11:59 PM
+                  created_time: 1761721538
+                  created_time_formatted: Oct 29, 2025, 12:35 PM
+                  last_modified_time: 1761721540
+                  last_modified_time_formatted: Oct 29, 2025, 12:35 PM
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.UPDATE
+  /virtualaccounts/{virtual_account_id}/payments:
+    get:
+      tags:
+        - virtual-accounts
+      summary: List Virtual Account Payments
+      description: List payments received for a virtual account with optional filtering, sorting, and pagination.
+      parameters:
+        - $ref: '#/components/parameters/virtual_account_id'
+        - $ref: '#/components/parameters/account_id'
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/per_page'
+        - $ref: '#/components/parameters/page'
+        - name: sort_column
+          description: Column to sort results by (e.g. date).
+          in: query
+          required: false
+          schema:
+            type: string
+          example: date
+        - name: sort_order
+          description: Sort order - A for ascending, D for descending.
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - A
+              - D
+          example: D
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/virtual-account-payments-response'
+              example:
+                code: 0
+                message: success
+                payments:
+                  - payment_id: '388000002062115'
+                    customer_id: ''
+                    virtual_account_id: '388000002067001'
+                    customer_name: ''
+                    customer_email: ''
+                    amount: '2.01'
+                    amount_formatted: ₹2.01
+                    receipt_email: ''
+                    dialing_code: '+91'
+                    phone: ''
+                    reference_number: ''
+                    transaction_reference_number: '570935464558'
+                    payment_type: ecommerce
+                    payment_type_formatted: E-Commerce
+                    currency: INR
+                    balance: '2.01'
+                    balance_formatted: ₹2.01
+                    amount_captured: '2.01'
+                    amount_captured_formatted: ₹2.01
+                    amount_refunded: '0.00'
+                    amount_refunded_formatted: ₹0.00
+                    fee_amount: '0.02'
+                    fee_amount_formatted: ₹0.02
+                    status: succeeded
+                    status_formatted: Succeeded
+                    transaction_type: one_time
+                    transaction_type_formatted: One Time
+                    fraud_alert: no_alert
+                    fraud_alert_formatted: No Alert received
+                    failure_reason: ''
+                    failure_category: ''
+                    failure_category_formatted: ''
+                    next_action: ''
+                    tip: ''
+                    date: 1765263038
+                    date_formatted: Dec 9, 2025, 12:20 PM
+                    payment_method:
+                      payment_method_id: ''
+                      type: bank_transfer
+                      type_formatted: Bank Transfer
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.READ
+  /virtualaccounts/{virtual_account_id}/close:
+    put:
+      tags:
+        - virtual-accounts
+      summary: Close Virtual Account
+      description: Close a virtual account to stop accepting payments.
+      parameters:
+        - $ref: '#/components/parameters/virtual_account_id'
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/virtual-account-close-response'
+              example:
+                code: 0
+                message: Virtual Account Closed
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.UPDATE
+components:
+  securitySchemes:
+    Zoho_Auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://accounts.zoho.in/oauth/v2/auth
+          scopes:
+            ZohoPay.payments.READ: Fetch virtual account details
+            ZohoPay.payments.CREATE: Create virtual account resources.
+            ZohoPay.payments.UPDATE: Update virtual account resources.
+  parameters:
+    account_id:
+      name: account_id
+      description: The Zoho Payments account ID.
+      in: query
+      required: true
+      schema:
+        type: number
+        format: long
+      example: 23137556
+    virtual_account_id:
+      name: virtual_account_id
+      description: A unique identifier of the virtual account.
+      in: path
+      required: true
+      schema:
+        type: string
+      example: '1987000007005239'
+    status:
+      name: status
+      description: 'Status can be: <code>Status.All</code>'
+      in: query
+      required: false
+      schema:
+        type: string
+      example: Status.All
+    per_page:
+      name: per_page
+      description: Indicates the number of payments to list per page. The default value is <code>25</code> per page, and the maximum limit is <code>200</code>.
+      in: query
+      required: false
+      schema:
+        type: integer
+      example: 25
+    page:
+      name: page
+      description: Indicates the page number of the payments list. (e.g., <code>1</code> )
+      in: query
+      required: false
+      schema:
+        type: integer
+      example: 1
+  schemas:
+    gendoc-attributes-schema:
+      $ref: '#/components/schemas/virtual-account-response'
+    virtual-account-response:
+      type: object
+      description: Virtual account object returned in API responses.
+      properties:
+        virtual_account_id:
+          $ref: '#/components/schemas/virtual_account_id'
+        account_number:
+          $ref: '#/components/schemas/account_number'
+        ifsc_code:
+          $ref: '#/components/schemas/ifsc_code'
+        beneficiary_name:
+          $ref: '#/components/schemas/beneficiary_name'
+        description:
+          $ref: '#/components/schemas/description'
+        customer_id:
+          $ref: '#/components/schemas/customer_id'
+        minimum_amount:
+          $ref: '#/components/schemas/minimum_amount'
+        maximum_amount:
+          $ref: '#/components/schemas/maximum_amount'
+        amount_paid:
+          $ref: '#/components/schemas/amount_paid'
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+        reference_number:
+          $ref: '#/components/schemas/reference_number'
+        status:
+          $ref: '#/components/schemas/status'
+        expires_at:
+          $ref: '#/components/schemas/expires_at'
+        created_time:
+          $ref: '#/components/schemas/created_time'
+        last_modified_time:
+          $ref: '#/components/schemas/last_modified_time'
+    virtual_account_id:
+      description: The unique identifier of the virtual account.
+      type: string
+      example: '1987000007005239'
+    account_number:
+      description: Generated virtual account number.
+      type: string
+      example: ZOHOESAAAD5QKQ2FAKW
+    ifsc_code:
+      description: IFSC of the virtual account.
+      type: string
+      example: ICIC0000106
+    beneficiary_name:
+      description: Beneficiary name mapped to the virtual account.
+      type: string
+      example: Zoho Payments
+    description:
+      description: Description provided while creating the virtual account.
+      type: string
+      example: Description for ORDER#123
+    customer_id:
+      description: Customer ID associated with the virtual account. Create customers using the <a href="/in/payments/api/v1/customers/#create-customer">Customer API</a>.
+      type: string
+      example: '1987000007005031'
+    minimum_amount:
+      description: Minimum amount accepted per payment.
+      type: number
+      format: double
+      example: 100
+    maximum_amount:
+      description: Maximum amount accepted per payment.
+      type: number
+      format: double
+      example: 10000
+    amount_paid:
+      description: Total amount received.
+      type: number
+      format: double
+      example: 0
+    reference_number:
+      description: Reference number provided for the virtual account.
+      type: string
+      example: zxjnijnwdjf
+    status:
+      description: Status of the virtual account. It can be <code>active</code> or <code>closed</code>.
+      type: string
+      example: active
+    expires_at:
+      description: Expiry date of the virtual account (YYYY-MM-DD).
+      type: string
+      example: '2026-10-25'
+    created_time:
+      description: The timestamp (epoch milliseconds) when the virtual account was created.
+      type: integer
+      format: int64
+      example: 1761573181
+    last_modified_time:
+      description: The timestamp (epoch milliseconds) of the latest update.
+      type: integer
+      format: int64
+      example: 1761573181
+    virtual-account:
+      description: Virtual account details.
+      type: object
+      properties:
+        virtual_account_id:
+          description: The unique identifier of the virtual account.
+          type: string
+          example: '1987000007005239'
+        account_number:
+          description: Generated virtual account number.
+          type: string
+          example: ZOHOESAAAD5QKQ2FAKW
+        ifsc_code:
+          description: IFSC of the virtual account.
+          type: string
+          example: ICIC0000106
+        beneficiary_name:
+          description: Beneficiary name mapped to the virtual account.
+          type: string
+          example: Zoho Payments
+        description:
+          description: Description provided while creating the virtual account.
+          type: string
+          example: Description for ORDER#123
+        customer_id:
+          description: Customer ID associated with the virtual account.
+          type: string
+          example: '1987000007005031'
+        minimum_amount:
+          description: Minimum amount accepted per payment.
+          type: number
+          format: double
+          example: 100
+        maximum_amount:
+          description: Maximum amount accepted per payment.
+          type: number
+          format: double
+          example: 10000
+        amount_paid:
+          description: Total amount received.
+          type: number
+          format: double
+          example: 0
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+        amount_paid_formatted:
+          type: string
+          example: ₹0.00
+        reference_number:
+          description: Reference number provided for the virtual account.
+          type: string
+          example: zxjnijnwdjf
+        status:
+          description: Status of the virtual account. It can be <code>active</code> or <code>closed</code>.
+          type: string
+          example: active
+        status_formatted:
+          type: string
+          example: Active
+        expires_at:
+          description: Expiry date of the virtual account (YYYY-MM-DD).
+          type: string
+          example: '2026-10-25'
+        expires_at_formatted:
+          type: string
+          example: Oct 25, 2026, 11:59 PM
+        created_time:
+          description: The timestamp (epoch milliseconds) when the virtual account was created.
+          type: integer
+          format: int64
+          example: 1761573181
+        created_time_formatted:
+          type: string
+          example: Oct 27, 2025, 07:23 PM
+        last_modified_time:
+          description: The timestamp (epoch milliseconds) of the latest update.
+          type: integer
+          format: int64
+          example: 1761573181
+        last_modified_time_formatted:
+          type: string
+          example: Oct 27, 2025, 07:23 PM
+    virtual-account-create:
+      description: Virtual account details returned when creating a new virtual account.
+      type: object
+      properties:
+        virtual_account_id:
+          description: The unique identifier of the virtual account.
+          type: string
+          example: '1987000007005239'
+        account_number:
+          description: Generated virtual account number.
+          type: string
+          example: ZOHOESAAAD5QKQ2FAKW
+        ifsc_code:
+          description: IFSC of the virtual account.
+          type: string
+          example: ICIC0000106
+        beneficiary_name:
+          description: Beneficiary name associated with the virtual account.
+          type: string
+          example: Zoho Payments
+        description:
+          description: Description provided while creating the virtual account.
+          type: string
+          example: Description for ORDER#123
+        customer_id:
+          description: Customer ID mapped to the virtual account.
+          type: string
+          example: '1987000007005031'
+        minimum_amount:
+          description: Minimum amount accepted per payment.
+          type: number
+          format: double
+          example: 100
+        maximum_amount:
+          description: Maximum amount accepted per payment.
+          type: number
+          format: double
+          example: 10000
+        amount_paid:
+          description: Total amount received.
+          type: number
+          format: double
+          example: 0
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+        amount_paid_formatted:
+          description: Formatted amount received.
+          type: string
+          example: ₹0.00
+        reference_number:
+          description: Reference number provided for the virtual account.
+          type: string
+          example: zxjnijnwdjf
+        status:
+          description: Status of the virtual account. It can be <code>active</code> or <code>closed</code>.
+          type: string
+          example: active
+        status_formatted:
+          type: string
+          example: Active
+        expires_at:
+          description: Expiry date of the virtual account (YYYY-MM-DD).
+          type: string
+          example: '2026-10-25'
+        expires_at_formatted:
+          type: string
+          example: Oct 25, 2026, 11:59 PM
+        created_time:
+          description: The timestamp (epoch milliseconds) when the virtual account was created.
+          type: integer
+          format: int64
+          example: 1761573181
+        created_time_formatted:
+          type: string
+          example: Oct 27, 2025, 07:23 PM
+        last_modified_time:
+          description: The timestamp (epoch milliseconds) of the latest update.
+          type: integer
+          format: int64
+          example: 1761573181
+        last_modified_time_formatted:
+          type: string
+          example: Oct 27, 2025, 07:23 PM
+    virtual-account-create-request:
+      description: Payload required to create a virtual account.
+      type: object
+      required:
+        - description
+      properties:
+        description:
+          description: Description of the virtual account.
+          type: string
+          example: Description for ORDER#123
+        customer_id:
+          description: Customer ID associated with the virtual account. Create customers using the <a href="/in/payments/api/v1/customers/#create-customer">Customer API</a>.
+          type: string
+          example: '1987000007005031'
+        minimum_amount:
+          description: Minimum amount allowed per payment.
+          type: number
+          format: double
+          example: 100
+        maximum_amount:
+          description: Maximum amount allowed per payment.
+          type: number
+          format: double
+          example: 10000
+        expires_at:
+          description: Virtual account expiry date (YYYY-MM-DD).
+          type: string
+          example: '2026-10-25'
+        reference_number:
+          description: Reference number for the virtual account.
+          type: string
+          example: zxjnijnwdjf
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+    virtual-account-update-request:
+      description: Payload required to update a virtual account.
+      type: object
+      properties:
+        description:
+          description: Description of the virtual account.
+          type: string
+          example: Testing virtual account update
+        minimum_amount:
+          description: Minimum amount allowed per payment.
+          type: number
+          format: double
+          example: 10
+        maximum_amount:
+          description: Maximum amount allowed per payment.
+          type: number
+          format: double
+          example: 900
+        expires_at:
+          description: Virtual account expiry date (YYYY-MM-DD).
+          type: string
+          example: '2026-07-12'
+        reference_number:
+          description: Reference number for the virtual account.
+          type: string
+          example: zx00jnwdjf
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+    virtual-account-create-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: Virtual Account Created
+          readOnly: true
+        virtual_account:
+          $ref: '#/components/schemas/virtual-account-create'
+    virtual-account-single-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        virtual_account:
+          $ref: '#/components/schemas/virtual-account'
+    virtual-account-update-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: Virtual Account Updated
+          readOnly: true
+        virtual_account:
+          $ref: '#/components/schemas/virtual-account'
+      example:
+        code: 0
+        message: Virtual Account Updated
+        virtual_account:
+          virtual_account_id: '1987000007018050'
+          account_number: ZOHOESAAAD5QKQ2F5WK
+          ifsc_code: ICIC0000106
+          beneficiary_name: Zoho Payments
+          description: Testing virtual account update
+          customer_id: '1987000007005031'
+          minimum_amount: 10
+          maximum_amount: 900
+          amount_paid: '0.00'
+          amount_paid_formatted: ₹0.00
+          meta_data:
+            - key: Key1
+              value: Value1
+          reference_number: zx00jnwdjf
+          status: active
+          status_formatted: Active
+          expires_at: '2026-07-12'
+          expires_at_formatted: Jul 12, 2026, 11:59 PM
+          created_time: 1761721538
+          created_time_formatted: Oct 29, 2025, 12:35 PM
+          last_modified_time: 1761721540
+          last_modified_time_formatted: Oct 29, 2025, 12:35 PM
+    virtual-account-close-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: Virtual Account Closed
+    virtual-account-payment-method:
+      type: object
+      description: Payment method details for a virtual account payment.
+      properties:
+        payment_method_id:
+          type: string
+          example: ''
+        type:
+          type: string
+          description: Payment method type
+          example: bank_transfer
+        type_formatted:
+          type: string
+          example: Bank Transfer
+    virtual-account-payment:
+      type: object
+      properties:
+        payment_id:
+          type: string
+          example: '388000002062115'
+        customer_id:
+          type: string
+          example: ''
+        virtual_account_id:
+          type: string
+          example: '388000002067001'
+        customer_name:
+          type: string
+          example: ''
+        customer_email:
+          type: string
+          example: ''
+        amount:
+          type: string
+          example: '2.01'
+        amount_formatted:
+          type: string
+          example: ₹2.01
+        receipt_email:
+          type: string
+          example: ''
+        dialing_code:
+          type: string
+          example: ''
+        phone:
+          type: string
+          example: ''
+        reference_number:
+          type: string
+          example: ''
+        transaction_reference_number:
+          type: string
+          example: '570935464558'
+        payment_type:
+          type: string
+          example: ecommerce
+        payment_type_formatted:
+          type: string
+          example: E-Commerce
+        currency:
+          type: string
+          example: INR
+        balance:
+          type: string
+          example: '2.01'
+        balance_formatted:
+          type: string
+          example: ₹2.01
+        amount_captured:
+          type: string
+          example: '2.01'
+        amount_captured_formatted:
+          type: string
+          example: ₹2.01
+        amount_refunded:
+          type: string
+          example: '0.00'
+        amount_refunded_formatted:
+          type: string
+          example: ₹0.00
+        fee_amount:
+          type: string
+          example: '0.02'
+        fee_amount_formatted:
+          type: string
+          example: ₹0.02
+        status:
+          type: string
+          example: succeeded
+        status_formatted:
+          type: string
+          example: Succeeded
+        transaction_type:
+          type: string
+          example: one_time
+        transaction_type_formatted:
+          type: string
+          example: One Time
+        fraud_alert:
+          type: string
+          example: no_alert
+        fraud_alert_formatted:
+          type: string
+          example: No Alert received
+        failure_reason:
+          type: string
+          example: ''
+        failure_category:
+          type: string
+          example: ''
+        failure_category_formatted:
+          type: string
+          example: ''
+        next_action:
+          type: string
+          example: ''
+        tip:
+          type: string
+          example: ''
+        date:
+          type: integer
+          format: int64
+          example: 1765263038
+        date_formatted:
+          type: string
+          example: Dec 9, 2025, 12:20 PM
+        payment_method:
+          $ref: '#/components/schemas/virtual-account-payment-method'
+    virtual-account-payments-response:
+      type: object
+      description: Response for listing virtual account payments.
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+          description: Response code. 0 indicates success.
+        message:
+          type: string
+          example: success
+          readOnly: true
+          description: Response message.
+        payments:
+          type: array
+          description: List of payments for the virtual account.
+          items:
+            $ref: '#/components/schemas/virtual-account-payment'

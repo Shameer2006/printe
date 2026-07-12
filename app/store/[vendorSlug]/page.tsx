@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -73,7 +73,9 @@ export default function VendorStorePage() {
 
   return (
     <VendorProvider vendor={vendor}>
-      <PrintApp />
+      <Suspense>
+        <PrintApp />
+      </Suspense>
     </VendorProvider>
   );
 }

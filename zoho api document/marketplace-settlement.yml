@@ -1,0 +1,1345 @@
+openapi: 3.0.0
+info:
+  title: Split
+  description: The Split APIs allow you to manage transfers, transfer reversals, and connected accounts for marketplace payments.
+  contact: {}
+  version: 1.0.0
+servers:
+  - url: https://payments.zoho.in/api/v1
+    description: API Endpoint
+tags:
+  - name: marketplace-settlement
+    description: Split Module
+paths:
+  /transfers:
+    post:
+      tags:
+        - marketplace-settlement
+      summary: Create Transfer
+      description: Used to create a transfer for a payment to one or more connected accounts.
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/create-transfer-request'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/create-transfer-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.transfers.CREATE
+    get:
+      tags:
+        - marketplace-settlement
+      summary: List Transfers
+      description: Used to retrieve the list of transfers.
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+        - $ref: '#/components/parameters/transfer_status'
+        - $ref: '#/components/parameters/filter_by'
+        - $ref: '#/components/parameters/payment_id_query'
+        - $ref: '#/components/parameters/connected_account_id_query'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/transfer-list-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.transfers.READ
+  /transfers/{transfer_id}:
+    get:
+      tags:
+        - marketplace-settlement
+      summary: Retrieve Transfer
+      description: Used to retrieve the details of a specific transfer.
+      parameters:
+        - name: transfer_id
+          description: The unique identifier of the transfer.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 6485000000035001
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/transfer-details-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.transfers.READ
+  /transferreversals:
+    post:
+      tags:
+        - marketplace-settlement
+      summary: Create Transfer Reversal
+      description: Used to create a reversal for an existing transfer.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/create-transfer-reversal-request'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/create-transfer-reversal-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.transfers.CREATE
+    get:
+      tags:
+        - marketplace-settlement
+      summary: List Transfer Reversals
+      description: Used to retrieve the list of transfer reversals.
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+        - $ref: '#/components/parameters/transfer_status'
+        - $ref: '#/components/parameters/filter_by'
+        - $ref: '#/components/parameters/payment_id_query'
+        - $ref: '#/components/parameters/connected_account_id_query'
+        - $ref: '#/components/parameters/transfer_id_query'
+        - $ref: '#/components/parameters/refund_id_query'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/transfer-reversal-list-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.transfers.READ
+  /connectedaccounts:
+    get:
+      tags:
+        - marketplace-settlement
+      summary: List Connected Accounts
+      description: Used to retrieve the list of all connected accounts.
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+        - $ref: '#/components/parameters/connected_account_id_query'
+        - $ref: '#/components/parameters/filter_by'
+        - $ref: '#/components/parameters/from_date'
+        - $ref: '#/components/parameters/to_date'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connected-account-list-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.connectedaccounts.READ
+  /connectedaccounts/{connected_account_id}:
+    get:
+      tags:
+        - marketplace-settlement
+      summary: Retrieve Connected Account
+      description: Used to retrieve the details of a specific connected account.
+      parameters:
+        - $ref: '#/components/parameters/connected_account_id_path'
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connected-account-details-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.connectedaccounts.READ
+  /connectedaccounts/{connected_account_id}/payouts:
+    get:
+      tags:
+        - marketplace-settlement
+      summary: List Connected Account Payouts
+      description: Used to retrieve the list of payouts for a specific connected account.
+      parameters:
+        - $ref: '#/components/parameters/connected_account_id_path'
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connected-account-payout-list-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.connectedaccounts.READ
+  /connectedaccounts/{connected_account_id}/payout/{payout_id}:
+    get:
+      tags:
+        - marketplace-settlement
+      summary: Retrieve Connected Account Payout
+      description: Used to retrieve the details of a specific payout for a connected account.
+      parameters:
+        - $ref: '#/components/parameters/connected_account_id_path'
+        - name: payout_id
+          description: The unique identifier of the payout.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 3000000054061
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connected-account-payout-details-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.connectedaccounts.READ
+  /connectedaccounts/{connected_account_id}/payouts/{payout_id}/transactions:
+    get:
+      tags:
+        - marketplace-settlement
+      summary: List Connected Account Payout Transactions
+      description: Used to retrieve the list of transactions associated with a specific connected account payout.
+      parameters:
+        - $ref: '#/components/parameters/connected_account_id_path'
+        - name: payout_id
+          description: The unique identifier of the payout.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 3000000054061
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connected-account-payout-transactions-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.connectedaccounts.READ
+  /connectedaccounts/{connected_account_id}/transactions:
+    get:
+      tags:
+        - marketplace-settlement
+      summary: List Connected Account Transactions
+      description: Used to retrieve the list of transactions for connected accounts.
+      parameters:
+        - name: connected_account_id
+          description: The unique identifier of the connected account.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 3000000004003
+        - $ref: '#/components/parameters/account_id'
+        - name: sort_column
+          description: 'The column to sort by. Allowed values: <code>transaction_time</code>, <code>amount</code>, <code>net_amount</code>, <code>customer_name</code>, <code>available_on</code>, <code>settled_time</code>.'
+          in: query
+          required: false
+          schema:
+            type: string
+          example: transaction_time
+        - name: transaction_type
+          description: 'Filter by transaction type. Allowed values: <code>TransactionType.All</code>, <code>TransactionType.Charge</code>, <code>TransactionType.Charge_Reversal</code>, <code>TransactionType.Refund</code>, <code>TransactionType.Payout</code>, <code>TransactionType.Payout_Reversal</code>.'
+          in: query
+          required: false
+          schema:
+            type: string
+          example: TransactionType.All
+        - name: transaction_id
+          description: The unique identifier of the transaction.
+          in: query
+          required: false
+          schema:
+            type: number
+            format: long
+        - $ref: '#/components/parameters/filter_by'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connected-account-transactions-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.connectedaccounts.READ
+components:
+  parameters:
+    account_id:
+      name: account_id
+      description: The Zoho Payments account ID.
+      in: query
+      required: true
+      schema:
+        type: number
+        format: long
+      example: 23137556
+    connected_account_id_path:
+      name: connected_account_id
+      description: The unique identifier of the connected account.
+      in: path
+      required: true
+      schema:
+        type: number
+        format: long
+      example: 6485000000021081
+    connected_account_id_query:
+      name: connected_account_id
+      description: The unique identifier of the connected account.
+      in: query
+      required: false
+      schema:
+        type: number
+        format: long
+      example: 6485000000021081
+    payment_id_query:
+      name: payment_id
+      description: The unique identifier of the payment.
+      in: query
+      required: false
+      schema:
+        type: number
+        format: long
+      example: 6485000000045015
+    transfer_id_query:
+      name: transfer_id
+      description: The unique identifier of the transfer.
+      in: query
+      required: false
+      schema:
+        type: number
+        format: long
+    refund_id_query:
+      name: refund_id
+      description: The unique identifier of the refund.
+      in: query
+      required: false
+      schema:
+        type: number
+        format: long
+    transfer_status:
+      name: status
+      description: 'Filter by transfer status. Allowed values: <code>Status.All</code>, <code>Status.Initiated</code>, <code>Status.Success</code>, <code>Status.Failed</code>.'
+      in: query
+      required: false
+      schema:
+        type: string
+      example: Status.All
+    filter_by:
+      name: filter_by
+      description: 'Filter by date intervals: <code>CreatedDate.Today</code>, <code>CreatedDate.ThisWeek</code>, <code>CreatedDate.ThisMonth</code>, <code>CreatedDate.ThisQuarter</code>, <code>CreatedDate.ThisHalfYear</code>, <code>CreatedDate.ThisYear</code>, <code>CreatedDate.PreviousDay</code>, <code>CreatedDate.PreviousWeek</code>, <code>CreatedDate.PreviousMonth</code>, <code>CreatedDate.PreviousQuarter</code>, <code>CreatedDate.PreviousHalfYear</code>, <code>CreatedDate.PreviousYear</code>, <code>CreatedDate.CustomDate</code>, <code>CreatedDate.Last_7_Days</code>, <code>CreatedDate.Last_30_Days</code>, <code>CreatedDate.Last_90_Days</code>.'
+      in: query
+      required: false
+      schema:
+        type: string
+      example: CreatedDate.ThisMonth
+    from_date:
+      name: from_date
+      description: If the given <code>filter_by</code> is <code>CreatedDate.CustomDate</code>, this param is required. (e.g., <code>2024-06-06</code>)
+      in: query
+      required: false
+      schema:
+        type: string
+      example: '2024-06-06'
+    to_date:
+      name: to_date
+      description: If the given <code>filter_by</code> is <code>CreatedDate.CustomDate</code>, this param is required. (e.g., <code>2024-08-30</code>)
+      in: query
+      required: false
+      schema:
+        type: string
+      example: '2024-08-30'
+  schemas:
+    gendoc-attributes-schema:
+      $ref: '#/components/schemas/transfer-response'
+    transfer-split-item:
+      type: object
+      properties:
+        connected_account_id:
+          $ref: '#/components/schemas/connected_account_id'
+        amount:
+          description: The transfer amount for this connected account.
+          type: number
+          format: double
+          example: 20
+        description:
+          description: A description for this transfer split.
+          type: string
+          example: 'Transfer for order #1234'
+    create-transfer-request:
+      type: object
+      required:
+        - payment_id
+        - transfer_split
+      properties:
+        payment_id:
+          description: The unique identifier of the payment to split.
+          type: number
+          format: long
+          example: 6485000000045015
+        transfer_split:
+          description: List of transfer splits with connected account details.
+          type: array
+          items:
+            $ref: '#/components/schemas/transfer-split-item'
+    transfer-split-response-item:
+      type: object
+      properties:
+        net_transfer_amount:
+          description: The net transfer amount after deducting fees.
+          type: string
+          example: '20.24'
+        fee_amount:
+          description: The fee amount deducted for the transfer.
+          type: string
+          example: '0.20'
+        fee_tax_amount:
+          description: The tax amount on the transfer fee.
+          type: string
+          example: '0.04'
+        transfer_amount:
+          description: The transfer amount.
+          type: string
+          example: '20.00'
+        currency:
+          $ref: '#/components/schemas/currency'
+        transfer_id:
+          $ref: '#/components/schemas/transfer_id'
+        status:
+          $ref: '#/components/schemas/transfer_status'
+        connected_account_id:
+          $ref: '#/components/schemas/connected_account_id'
+    create-transfer-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        data:
+          type: object
+          properties:
+            transfers:
+              type: object
+              properties:
+                splits:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/transfer-split-response-item'
+                status:
+                  description: The overall status of the transfer operation.
+                  type: string
+                  example: success
+    transfer-response:
+      type: object
+      properties:
+        transfer_id:
+          $ref: '#/components/schemas/transfer_id'
+        payment_id:
+          $ref: '#/components/schemas/payment_id'
+        total_amount:
+          $ref: '#/components/schemas/total_amount'
+        net_amount:
+          $ref: '#/components/schemas/net_amount'
+        fee_amount:
+          $ref: '#/components/schemas/fee_amount'
+        fee_rate:
+          $ref: '#/components/schemas/fee_rate'
+        fee_tax_amount:
+          $ref: '#/components/schemas/fee_tax_amount'
+        connected_account_id:
+          $ref: '#/components/schemas/connected_account_id'
+        description:
+          $ref: '#/components/schemas/description'
+        status:
+          $ref: '#/components/schemas/transfer_status'
+        reversed_amount:
+          $ref: '#/components/schemas/reversed_amount'
+        created_time:
+          $ref: '#/components/schemas/created_time'
+    transfer-list-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        transfers:
+          type: array
+          items:
+            $ref: '#/components/schemas/transfer-response'
+    transfer-reversal-in-details:
+      type: object
+      properties:
+        reversal_id:
+          description: The unique identifier of the reversal.
+          type: string
+          example: '6485000000035013'
+        total_amount:
+          $ref: '#/components/schemas/total_amount'
+        net_amount:
+          $ref: '#/components/schemas/net_amount'
+        fee_amount:
+          $ref: '#/components/schemas/fee_amount'
+        description:
+          $ref: '#/components/schemas/description'
+        status:
+          $ref: '#/components/schemas/transfer_status'
+        created_time:
+          $ref: '#/components/schemas/created_time'
+    transfer-details-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        transfer_details:
+          type: object
+          properties:
+            transfer_id:
+              $ref: '#/components/schemas/transfer_id'
+            payment_id:
+              $ref: '#/components/schemas/payment_id'
+            total_amount:
+              $ref: '#/components/schemas/total_amount'
+            net_amount:
+              $ref: '#/components/schemas/net_amount'
+            fee_amount:
+              $ref: '#/components/schemas/fee_amount'
+            fee_rate:
+              $ref: '#/components/schemas/fee_rate'
+            fee_tax_amount:
+              $ref: '#/components/schemas/fee_tax_amount'
+            connected_account_id:
+              $ref: '#/components/schemas/connected_account_id'
+            description:
+              $ref: '#/components/schemas/description'
+            currency:
+              $ref: '#/components/schemas/currency'
+            created_time:
+              $ref: '#/components/schemas/created_time'
+            status:
+              $ref: '#/components/schemas/transfer_status'
+            reversed_amount:
+              $ref: '#/components/schemas/reversed_amount'
+            reversals:
+              type: array
+              items:
+                $ref: '#/components/schemas/transfer-reversal-in-details'
+    create-transfer-reversal-request:
+      type: object
+      required:
+        - transfer_id
+        - reversal_amount
+      properties:
+        transfer_id:
+          description: The unique identifier of the parent transfer.
+          type: number
+          format: long
+          example: 6485000000046007
+        reversal_amount:
+          description: The amount to reverse from the transfer.
+          type: number
+          format: double
+          example: 100
+        description:
+          description: A description for the transfer reversal.
+          type: string
+          example: Reverse 100
+    create-transfer-reversal-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        data:
+          type: object
+          properties:
+            transfer_reversal:
+              type: object
+              properties:
+                transfer_reversal_id:
+                  $ref: '#/components/schemas/transfer_reversal_id'
+                currency:
+                  $ref: '#/components/schemas/currency'
+                transfer_id:
+                  $ref: '#/components/schemas/transfer_id'
+                transfer_reversal_amount:
+                  description: The reversed amount.
+                  type: string
+                  example: '100.00'
+                connected_account_id:
+                  $ref: '#/components/schemas/connected_account_id'
+                status:
+                  $ref: '#/components/schemas/transfer_status'
+    transfer-reversal-response:
+      type: object
+      properties:
+        transfer_reversal_id:
+          $ref: '#/components/schemas/transfer_reversal_id'
+        currency:
+          $ref: '#/components/schemas/currency'
+        total_amount:
+          $ref: '#/components/schemas/total_amount'
+        connected_account_id:
+          $ref: '#/components/schemas/connected_account_id'
+        connected_account_name:
+          $ref: '#/components/schemas/connected_account_name'
+        status:
+          $ref: '#/components/schemas/transfer_status'
+        created_time:
+          $ref: '#/components/schemas/created_time'
+    transfer-reversal-list-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        transfer_reversals:
+          type: array
+          items:
+            $ref: '#/components/schemas/transfer-reversal-response'
+    connected-account-bank-account-response:
+      type: object
+      properties:
+        connected_account_bank_account_id:
+          description: The unique identifier of the connected account bank account.
+          type: string
+          example: '4000000003011'
+        currency:
+          $ref: '#/components/schemas/currency'
+        routing_number:
+          description: The IFSC code of the bank account.
+          type: string
+          example: ICIC00002
+        last_four_digits:
+          description: The last four digits of the bank account number.
+          type: string
+          example: '9013'
+        account_holder_name:
+          description: The name of the account holder.
+          type: string
+          example: John Doe
+        status:
+          description: The status of the bank account. It can be <code>active</code> or <code>inactive</code>.
+          type: string
+          example: active
+        verification_status:
+          description: The verification status of the bank account. It can be <code>pending</code> or <code>verified</code>.
+          type: string
+          example: verified
+        created_by:
+          $ref: '#/components/schemas/created_by'
+        last_modified_by:
+          $ref: '#/components/schemas/last_modified_by'
+        created_time:
+          $ref: '#/components/schemas/created_time'
+        last_modified_time:
+          $ref: '#/components/schemas/last_modified_time'
+    connected-account-list-item:
+      type: object
+      properties:
+        connected_account_id:
+          $ref: '#/components/schemas/connected_account_id'
+        first_name:
+          $ref: '#/components/schemas/first_name'
+        last_name:
+          $ref: '#/components/schemas/last_name'
+        under_writing_status:
+          $ref: '#/components/schemas/under_writing_status'
+        created_by:
+          $ref: '#/components/schemas/created_by'
+        last_modified_by:
+          $ref: '#/components/schemas/last_modified_by'
+        created_time:
+          $ref: '#/components/schemas/created_time'
+        last_modified_time:
+          $ref: '#/components/schemas/last_modified_time'
+    connected-account-list-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        connected_accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/connected-account-list-item'
+    connected-account-detail:
+      type: object
+      properties:
+        connected_account_id:
+          $ref: '#/components/schemas/connected_account_id'
+        first_name:
+          $ref: '#/components/schemas/first_name'
+        last_name:
+          $ref: '#/components/schemas/last_name'
+        email_id:
+          $ref: '#/components/schemas/email_id'
+        phone_number:
+          $ref: '#/components/schemas/phone_number'
+        business_name:
+          description: The business name of the connected account.
+          type: string
+          example: Doe Enterprises
+        account_name:
+          description: The account name of the connected account.
+          type: string
+          example: johndoe
+        business_type:
+          description: The business type of the connected account.
+          type: string
+          example: llp
+        dob:
+          description: The date of birth of the connected account.
+          type: string
+          example: 01-01-1990
+        under_writing_status:
+          $ref: '#/components/schemas/under_writing_status'
+        transfer_status:
+          description: The transfer status of the connected account. It can be <code>enabled</code> or <code>disabled</code>.
+          type: string
+          example: enabled
+        payout_status:
+          description: The payout status of the connected account. It can be <code>enabled</code>, <code>disabled</code>, or <code>paused_by_risk</code>.
+          type: string
+          example: disabled
+        payout_delay_days:
+          description: The number of days payouts are delayed.
+          type: integer
+          example: 0
+        created_by:
+          $ref: '#/components/schemas/created_by'
+        last_modified_by:
+          $ref: '#/components/schemas/last_modified_by'
+        created_time:
+          $ref: '#/components/schemas/created_time'
+        last_modified_time:
+          $ref: '#/components/schemas/last_modified_time'
+        connected_account_bank_accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/connected-account-bank-account-response'
+    connected-account-details-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        connected_account:
+          $ref: '#/components/schemas/connected-account-detail'
+    connected-account-payout-item:
+      type: object
+      properties:
+        payout_id:
+          description: The unique identifier of the payout.
+          type: string
+          example: '3000000054061'
+        amount:
+          description: The payout amount.
+          type: string
+          example: '100.0'
+        currency:
+          $ref: '#/components/schemas/currency'
+        status:
+          description: The payout status. It can be <code>initiated</code>, <code>paid</code>, or <code>failed</code>.
+          type: string
+          example: initiated
+        failure_code:
+          description: The failure code of the payout, if any.
+          type: string
+          example: ''
+        failure_message:
+          description: The failure message of the payout, if any.
+          type: string
+          example: ''
+        statement_descriptor:
+          description: The payout descriptor.
+          type: string
+          example: ''
+        payout_method:
+          description: The payout method. It can be <code>standard</code>.
+          type: string
+          example: standard
+        initiated_time:
+          description: The timestamp (milliseconds) indicating when the payout was initiated.
+          type: string
+          example: '1750681308996'
+        arrival_date:
+          description: The expected arrival date of the payout.
+          type: string
+          example: '1750681308996'
+        processed_date:
+          description: The date on which the payout was processed.
+          type: string
+          example: ''
+        type:
+          description: The payout type. It can be <code>deposit</code> or <code>withdrawal</code>.
+          type: string
+          example: deposit
+        payout_bank_reference_id:
+          description: The bank reference identifier of the payout.
+          type: string
+          example: ''
+        bank_account_details:
+          type: object
+          properties:
+            bank_name:
+              description: Name of the destination bank.
+              type: string
+              example: ICICI BANK LIMITED
+            account_number_last_four_digits:
+              description: The last four digits of the account number.
+              type: string
+              example: '1234'
+            account_holder_name:
+              description: The name of the account holder.
+              type: string
+              example: John Doe
+            routing_number:
+              description: The IFSC code of the bank.
+              type: string
+              example: ICIC0000001
+    connected-account-payout-list-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        payouts:
+          type: array
+          items:
+            $ref: '#/components/schemas/connected-account-payout-item'
+    payout-comment:
+      type: object
+      properties:
+        comment_id:
+          description: A unique identifier for the payout comment.
+          type: string
+          example: '3000000054061'
+        amount:
+          description: The amount associated with the comment.
+          type: string
+          example: '10.000'
+        operation_type:
+          description: The type of operation. It can be <code>created</code>, <code>updated</code>, or <code>deleted</code>.
+          type: string
+          example: created
+        action_type:
+          description: The action type. It can be <code>initiated</code>, <code>updated</code>, <code>paid</code>, or <code>failed</code>.
+          type: string
+          example: initiated
+        type:
+          description: The comment type. It can be <code>system_generated</code> or <code>manually_added</code>.
+          type: string
+          example: system_generated
+        description:
+          description: Description of the comment.
+          type: string
+          example: ''
+        created_by:
+          $ref: '#/components/schemas/created_by'
+        created_time:
+          $ref: '#/components/schemas/created_time'
+    payout-transaction-summary:
+      type: object
+      properties:
+        charge:
+          type: object
+          properties:
+            transaction_type:
+              type: string
+              example: charge
+            count:
+              type: integer
+              example: 2
+            net_amount:
+              type: number
+              format: double
+              example: 200
+            fee:
+              type: number
+              format: double
+              example: 0
+            amount:
+              type: number
+              format: double
+              example: 200
+            tax:
+              type: number
+              format: double
+              example: 0
+        refund:
+          type: object
+          properties:
+            transaction_type:
+              type: string
+              example: refund
+            count:
+              type: integer
+              example: 0
+            net_amount:
+              type: number
+              format: double
+              example: 0
+            fee:
+              type: number
+              format: double
+              example: 0
+            amount:
+              type: number
+              format: double
+              example: 0
+            tax:
+              type: number
+              format: double
+              example: 0
+        adjustment:
+          type: object
+          properties:
+            transaction_type:
+              type: string
+              example: adjustment
+            count:
+              type: integer
+              example: 0
+            net_amount:
+              type: number
+              format: double
+              example: 0
+            fee:
+              type: number
+              format: double
+              example: 0
+            amount:
+              type: number
+              format: double
+              example: 0
+            tax:
+              type: number
+              format: double
+              example: 0
+        total_amount:
+          type: number
+          format: double
+          example: 200
+    payout-account-details:
+      type: object
+      properties:
+        bank_name:
+          description: Name of the destination bank.
+          type: string
+          example: ''
+        account_holder:
+          description: The account holder name.
+          type: string
+          example: ''
+        account_number_last_four_digits:
+          description: The last four digits of the account number.
+          type: string
+          example: '1234'
+        routing_number:
+          description: The IFSC code of the bank.
+          type: string
+          example: ''
+        type:
+          description: The account type.
+          type: string
+          example: ''
+        country:
+          description: The country code of the account.
+          type: string
+          example: IN
+        currency:
+          $ref: '#/components/schemas/currency'
+    connected-account-payout-details-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        payout:
+          type: object
+          properties:
+            payout_id:
+              description: The unique identifier of the payout.
+              type: string
+              example: '3000000054061'
+            amount:
+              description: The payout amount.
+              type: string
+              example: '100.000'
+            currency:
+              $ref: '#/components/schemas/currency'
+            status:
+              description: The payout status.
+              type: string
+              example: initiated
+            failure_code:
+              type: string
+              example: ''
+            failure_message:
+              type: string
+              example: ''
+            statement_descriptor:
+              type: string
+              example: ''
+            initiated_time:
+              type: integer
+              format: int64
+              example: 0
+            arrival_date:
+              type: string
+              example: '1'
+            type:
+              type: string
+              example: deposit
+            payout_method:
+              type: string
+              example: standard
+            payout_bank_reference_id:
+              type: string
+              example: ''
+            comments:
+              type: array
+              items:
+                $ref: '#/components/schemas/payout-comment'
+            transaction_summary:
+              $ref: '#/components/schemas/payout-transaction-summary'
+            account_details:
+              $ref: '#/components/schemas/payout-account-details'
+    connected-account-payout-transaction-item:
+      type: object
+      properties:
+        payout_id:
+          description: The unique identifier of the payout.
+          type: string
+          example: '3000000054061'
+        transaction_id:
+          description: The unique identifier of the transaction.
+          type: string
+          example: '3000000054061'
+        parent_transaction_id:
+          description: The identifier of the parent transaction.
+          type: string
+          example: ''
+        net_amount:
+          description: The net amount of the transaction.
+          type: number
+          format: double
+          example: 100
+        amount:
+          description: The transaction amount.
+          type: number
+          format: double
+          example: 100
+        transaction_type:
+          description: The transaction type. It can be <code>charge</code>, <code>refund</code>, <code>payout</code>, etc.
+          type: string
+          example: charge
+        transaction_time:
+          description: The timestamp (milliseconds) indicating when the transaction occurred.
+          type: string
+          example: '1750169887261'
+        currency:
+          $ref: '#/components/schemas/currency'
+        customer_id:
+          description: The unique identifier of the customer.
+          type: string
+          example: ''
+        customer_name:
+          description: The name of the customer.
+          type: string
+          example: ''
+        description:
+          description: Description of the transaction.
+          type: string
+          example: ''
+    connected-account-payout-transactions-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/connected-account-payout-transaction-item'
+    connected-account-transaction-item:
+      type: object
+      properties:
+        transaction_date:
+          description: The date of the transaction (milliseconds).
+          type: string
+          example: '1760072928000'
+        transaction_id:
+          description: The unique identifier of the transaction.
+          type: string
+          example: '3000000000415'
+        description:
+          description: Description of the transaction.
+          type: string
+          example: Charge
+        refund_reason:
+          description: The refund reason, if the transaction is a refund.
+          type: string
+          example: ''
+        net_amount:
+          description: The net amount of the transaction.
+          type: number
+          format: double
+          example: 100
+        amount:
+          description: The transaction amount.
+          type: number
+          format: double
+          example: 100
+        currency:
+          $ref: '#/components/schemas/currency'
+        transaction_type:
+          description: The transaction type. It can be <code>charge</code>, <code>refund</code>, <code>payout</code>, <code>charge_reversal</code>, <code>payout_reversal</code>.
+          type: string
+          example: charge
+        parent_transaction_id:
+          description: The identifier of the parent transaction.
+          type: string
+          example: '3000000000415'
+        transaction_time:
+          description: The timestamp (milliseconds) indicating when the transaction occurred.
+          type: string
+          example: '1760072928000'
+        available_on:
+          description: The date when the transaction becomes available for payout (milliseconds).
+          type: string
+          example: '1760072928000'
+        settled_time:
+          description: The date when the transaction was settled (milliseconds).
+          type: string
+          example: '1760072928000'
+        status:
+          description: The settlement status. It can be <code>settled</code> or <code>not_settled</code>.
+          type: string
+          example: not_settled
+        payment_method:
+          description: The payment method used. It can be <code>card</code>, <code>upi</code>, <code>netbanking</code>, etc.
+          type: string
+          example: card
+        card_brand:
+          description: The brand of the card used for the payment.
+          type: string
+          example: visa
+        card_type:
+          description: The type of the card used.
+          type: string
+          example: ''
+        customer_id:
+          description: The unique identifier of the customer.
+          type: string
+          example: ''
+        customer_name:
+          description: The name of the customer.
+          type: string
+          example: ''
+    connected-account-transactions-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/connected-account-transaction-item'
+    transfer_id:
+      description: A unique identifier for the transfer.
+      type: string
+      example: '6485000000046007'
+    transfer_reversal_id:
+      description: A unique identifier for the transfer reversal.
+      type: string
+      example: '6485000000104454'
+    payment_id:
+      description: The unique identifier of the associated payment.
+      type: string
+      example: '6485000000045015'
+    connected_account_id:
+      description: The unique identifier of the connected account.
+      type: string
+      example: '6485000000021081'
+    connected_account_name:
+      description: The account name of the connected account.
+      type: string
+      example: johndoe
+    total_amount:
+      description: The total transfer amount.
+      type: string
+      example: '100.00'
+    net_amount:
+      description: The net amount after fees and taxes.
+      type: string
+      example: '101.18'
+    fee_amount:
+      description: The fee deducted from the transfer.
+      type: string
+      example: '1.00'
+    fee_rate:
+      description: The fee rate applied on the transfer.
+      type: number
+      format: double
+      example: 0.01
+    fee_tax_amount:
+      description: The tax on the fee.
+      type: string
+      example: '0.18'
+    reversed_amount:
+      description: The total reversed amount from this transfer.
+      type: string
+      example: '0.00'
+    currency:
+      description: The currency code, represented by a 3-letter ISO currency code <br>(e.g., <code class="url">INR</code>).
+      type: string
+      example: INR
+    transfer_status:
+      description: The status of the transfer. It can be <code>success</code>, <code>failed</code>, or <code>initiated</code>.
+      type: string
+      example: success
+    description:
+      description: A description associated with the record.
+      type: string
+      example: ''
+    created_time:
+      description: The timestamp (milliseconds) indicating when the record was created.
+      type: string
+      example: '1761569471473'
+    last_modified_time:
+      description: The timestamp (milliseconds) indicating when the record was last modified.
+      type: string
+      example: '1761569471473'
+    created_by:
+      description: The name of the user who created the record.
+      type: string
+      example: Admin
+    last_modified_by:
+      description: The name of the user who last modified the record.
+      type: string
+      example: Admin
+    first_name:
+      description: The first name of the connected account.
+      type: string
+      example: John
+    last_name:
+      description: The last name of the connected account.
+      type: string
+      example: Doe
+    email_id:
+      description: The email address of the connected account.
+      type: string
+      example: john@example.com
+    phone_number:
+      description: The phone number of the connected account.
+      type: string
+      example: '9876543210'
+    under_writing_status:
+      description: The underwriting status of the connected account. It can be <code>pending</code>, <code>accepted</code>, or <code>rejected</code>.
+      type: string
+      example: pending
+  securitySchemes:
+    Zoho_Auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://accounts.zoho.in/oauth/v2/auth
+          scopes:
+            ZohoPay.transfers.CREATE: Create Transfers and Transfer Reversals
+            ZohoPay.transfers.READ: Retrieve Transfers and Transfer Reversals
+            ZohoPay.connectedaccounts.READ: Retrieve Connected Accounts and Transactions

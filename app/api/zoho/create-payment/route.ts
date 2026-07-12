@@ -19,19 +19,23 @@ export async function POST(req: NextRequest) {
         }
 
         const accessToken = await getZohoAccessToken();
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
-        const payload = {
-            payment_link_name: `Order ${orderCode}`,
-            amount: amount,
-            currency_code: "INR",
-            description: `PrintEG Order - ${orderCode}`,
+        // Zoho Payments API v1 - exact structure from official docs
+        const payload: any = {
+            amount: parseFloat(amount),
+            currency: "INR",
+            phone: mobileNumber,
+            phone_country_code: "IN",
             reference_id: orderCode,
-            customer: {
-                phone: mobileNumber,
-            },
-            redirect_url: `${baseUrl}/api/zoho/callback?orderCode=${orderCode}&status=success`,
+            description: `PrintEG Order - ${orderCode}`,
         };
+
+        // Always send return_url — Zoho requires a public HTTPS URL (not localhost)
+        const publicBase = (baseUrl && !baseUrl.includes('localhost'))
+            ? baseUrl
+            : "https://www.printeg.in"; // fallback for local dev testing on production
+        payload.return_url = `${publicBase}/api/zoho/callback?orderCode=${orderCode}&status=success`;
 
         const url = `https://payments.zoho.in/api/v1/paymentlinks?account_id=${accountId}`;
 
@@ -46,6 +50,7 @@ export async function POST(req: NextRequest) {
 
         const data = await response.json();
 
+<<<<<<< HEAD
         if (data.code === 0 && data.payment_link) {
             const paymentLinkId = data.payment_link.payment_link_id;
 
@@ -62,6 +67,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({
                 paymentUrl: data.payment_link.url,
                 paymentLinkId,
+=======
+        if (data.code === 0 && data.payment_links) {
+            return NextResponse.json({
+                paymentUrl: data.payment_links.url,
+                paymentLinkId: data.payment_links.payment_link_id,
+>>>>>>> 67ee22ac2f24e065b7d21d61a0576b59fab2b36c
             });
         } else {
             console.error("Zoho Payment Link Creation Error:", data);

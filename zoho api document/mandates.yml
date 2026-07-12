@@ -1,0 +1,905 @@
+openapi: 3.0.0
+info:
+  title: Mandates
+  description: '<style>.endpoints-wrapper { display: none !important; }</style>The Mandate APIs let you create, manage, and track recurring payment mandates. It helps securely authorize future payments without payer involvement, simplifying how you set up and manage mandates for recurring or scheduled transactions.<br/><br/>Learn how to create and execute mandates with the <a href="https://www.zoho.com/in/payments/developerdocs/mandates/" target="_blank">Developer Documentation</a>, and understand how mandates work by referring to the <a href="https://www.zoho.com/in/payments/help/mandates/" target="_blank">Help Documentation</a>.<br/><br/><b>Mandate Enrollment Flow</b><br/><img src="/in/payments/api/v1/images/mandate-enrollment-flow.svg" alt="Mandate Enrollment Flow" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background-color: #f9f9f9;"><br/><br/><b>Mandate Execution Flow</b><br/><img src="/in/payments/api/v1/images/mandate-execution-flow.svg" alt="Mandate Execution Flow" style="max-width: 70%; height: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px; background-color: #f9f9f9;">'
+  contact: {}
+  version: 1.0.0
+servers:
+  - url: https://payments.zoho.in/api/v1
+    description: API Endpoint.
+tags:
+  - name: mandates
+    description: Mandates Module.
+  - name: payment-sessions
+    description: Payment Sessions for Mandates.
+paths:
+  /paymentsessions:
+    post:
+      tags:
+        - payment-sessions
+      summary: Create Payment Session - Mandate Enrollment
+      description: This API endpoint allows you to create a new Payment Session for Mandate Enrollment. Use it to set up recurring payments and initiate payment collection using the generated Payment Session ID.<br/><br/>Learn how to initiate payment using the widget by following the <a href="/in/payments/api/v1/widget/#initiate-payment">Initiate Payment</a> guide in the widget module.<br/>
+      operationId: create-mandate-enrollment-session
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/mandate-enrollment-session-request'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payment-session-create-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.CREATE
+  /mandates/notify:
+    post:
+      tags:
+        - mandates
+      summary: Send Mandate Notification
+      description: This API is used to send mandate notifications to customers manually. Notifications must be sent <b>at least 24 hours before</b> mandate execution. Use the <b>mandate_id</b> generated during mandate creation to call this API.<br/>
+      operationId: notify-for-mandate-execution
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/mandate-notify-request'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/mandate-notify-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.CREATE
+  /:
+    post:
+      tags:
+        - payment-sessions
+      summary: Create Payment Session - Mandate Execution
+      description: This API endpoint creates a Payment Session for mandate execution. Use the generated session ID to execute the mandate.<br/><br/><b>Note</b><br/>• Payment Session created for mandate execution are <b>valid for 3 days.</b><br/>• By default, a maximum of 3 retry attempts are allowed for each payment session, with a minimum interval of one hour between each attempt. Use the <code>max_retry_count</code> parameter to customize this value (1–3).<br/>• The mandate notification is linked to a payment session at the time of execution. The same mandate notification can be used only for retry attempts within that session and cannot be reused for a different session.<br/>
+      servers:
+        - url: https://payments.zoho.in/api/v1/paymentsessions
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/mandate-execution-session-request'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payment-session-create-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.CREATE
+  /mandates/execute:
+    post:
+      tags:
+        - mandates
+      summary: Execute Mandate
+      description: Execute a mandate to process a recurring payment. This API uses the associated <b>mandate_id</b> to initiate the payment.<br/><br/><b>Note:</b><br/>• For manual notifications, mandate execution should be initiated <b>24 hours after</b> the notification is sent.<br/>• For auto-execution, a notification is sent when the execute API is triggered, and the mandate is automatically executed <b>24 hours after</b> the notification.<br/>
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/mandate-execute-request'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/mandate-execute-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.CREATE
+  /mandates/notifications/{mandate_notification_id}:
+    get:
+      tags:
+        - mandates
+      summary: Retrieve Mandate Notification
+      description: Retrieve details of a specific mandate notification.
+      parameters:
+        - name: mandate_notification_id
+          description: The unique identifier of the mandate notification sent using the Send Mandate Notification API.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 3000000011001
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/mandate-notification-retrieve-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.READ
+  /mandates/{mandate_id}:
+    get:
+      tags:
+        - mandates
+      summary: Retrieve Mandate
+      description: Used to retrieve details of a specific mandate.
+      parameters:
+        - name: mandate_id
+          description: The unique identifier of the mandate created through Zoho Payments.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 3000000004001
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/mandate-retrieve-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.READ
+components:
+  parameters:
+    account_id:
+      name: account_id
+      description: The Zoho Payments account ID.
+      in: query
+      required: true
+      schema:
+        type: number
+        format: long
+      example: 23137556
+  securitySchemes:
+    Zoho_Auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://accounts.zoho.in/oauth/v2/auth
+          scopes:
+            ZohoPay.payments.CREATE: Create Payments
+            ZohoPay.payments.READ: Read Payments
+  schemas:
+    mandate-retrieve-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Response code.
+          example: 0
+        message:
+          type: string
+          description: Response message.
+          example: success
+        mandate:
+          $ref: '#/components/schemas/mandate-detail-response'
+    mandate-detail-response:
+      type: object
+      properties:
+        mandate_id:
+          type: string
+          description: Mandate ID.
+          example: '3000000004001'
+        customer_id:
+          type: string
+          description: Customer ID. Learn how to create a customer using the <a href="/in/payments/api/v1/customers/#create-customer">Create Customer</a> API.
+          example: '3000000003007'
+        customer_name:
+          type: string
+          description: Customer name.
+          example: Akash
+        customer_email:
+          type: string
+          format: email
+          description: Customer email address.
+          example: xxx@abc.com
+        customer_phone:
+          type: string
+          description: Customer phone number.
+          example: +91 0000000000
+        amount:
+          type: number
+          format: decimal
+          description: Mandate amount.
+          example: 100
+        currency:
+          type: string
+          description: The currency of the payment amount, represented by a 3-letter ISO currency code (e.g., INR).
+          example: INR
+        amount_rule:
+          type: string
+          description: Amount rule for the mandate.
+          example: variable
+        amount_rule_formatted:
+          type: string
+          description: Formatted amount rule.
+          example: Variable
+        frequency:
+          type: string
+          description: Payment frequency.
+          example: monthly
+        frequency_formatted:
+          type: string
+          description: Formatted payment frequency.
+          example: Monthly
+        debit_day:
+          type: integer
+          description: Debit day (shown only for specific frequencies).
+          example: 15
+        debit_rule:
+          type: string
+          description: Debit rule (shown only for specific frequencies).
+          example: 'on'
+        debit_rule_formatted:
+          type: string
+          description: Formatted debit rule.
+          example: 'On'
+        start_date:
+          type: integer
+          description: Start date (Unix timestamp).
+          example: 1754943017
+        start_date_formatted:
+          type: string
+          description: Formatted start date.
+          example: Aug 12, 2025, 01:40 am
+        end_date:
+          type: integer
+          description: End date (Unix timestamp).
+          example: 1764527399
+        end_date_formatted:
+          type: string
+          description: Formatted end date.
+          example: Nov 30, 2025, 11:59 pm
+        status:
+          type: string
+          description: Mandate status.
+          example: active
+        status_formatted:
+          type: string
+          description: Formatted mandate status.
+          example: Active
+        description:
+          type: string
+          description: Description of the mandate.
+          example: Testing Mandate Enrollment
+        revoked_reason:
+          type: string
+          description: Reason for mandate revocation (shown only when status is revoked).
+          example: revoked_by_customer
+        revoked_reason_formatted:
+          type: string
+          description: Formatted revoked reason.
+          example: Revoked by Customer
+        payment_method:
+          $ref: '#/components/schemas/mandate-payment-method'
+    mandate-payment-method:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Payment method type.
+          example: upi
+        type_formatted:
+          type: string
+          description: Formatted payment method type.
+          example: UPI
+        upi:
+          type: object
+          description: UPI payment method details (shown only when type is upi).
+          properties:
+            upi_id:
+              type: string
+              description: UPI ID.
+              example: akash@examplebank
+    mandate-notify-request:
+      type: object
+      required:
+        - mandate_id
+        - amount
+        - execution_date
+        - description
+        - invoice_number
+      properties:
+        mandate_id:
+          type: integer
+          format: int64
+          description: A unique identifier for the mandate.
+          minimum: 1
+          example: 300000009876
+        amount:
+          type: number
+          format: double
+          description: The amount to be charged, with support for decimal places.
+          minimum: 0.01
+          example: 100
+        execution_date:
+          type: string
+          description: 'The execution date for the payment (format: dd-mm-yyyy). Must be between T+1 and T+3 days.'
+          pattern: ^([0-2][0-9]|3[0-1])-(0[1-9]|1[0-2])-(19|20)[0-9]{2}$
+          example: 23-07-2025
+        description:
+          type: string
+          description: The description of the payment session. The maximum length of the description can be 500 characters.
+          maxLength: 500
+          example: Testing Mandate Execution
+        invoice_number:
+          type: string
+          description: The invoice number of the payment. The maximum length of the invoice number can be 50 characters.
+          maxLength: 50
+          example: INV12345
+    mandate-notify-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Response code.
+          example: 0
+        message:
+          type: string
+          description: Response message.
+          example: Mandate notification sent successfully
+        mandate_notification:
+          $ref: '#/components/schemas/mandate-payment-response'
+    mandate-payment-response:
+      type: object
+      properties:
+        mandate_id:
+          type: string
+          description: Mandate ID.
+          example: '3000000005013'
+        amount:
+          type: number
+          format: decimal
+          description: The amount to be notified, with support for decimal places.
+          example: 100
+        mandate_notification_id:
+          type: string
+          description: Mandate notification ID.
+          example: '3000000006001'
+        notification_status:
+          type: string
+          description: Notification status.
+          example: succeeded
+        notification_status_formatted:
+          type: string
+          description: Formatted notification status.
+          example: Succeeded
+        description:
+          type: string
+          description: Description of the notification.
+          example: Testing Mandate Notification
+        invoice_number:
+          type: string
+          description: Invoice number.
+          example: INV12345
+    mandate-execute-request:
+      type: object
+      required:
+        - customer_id
+        - mandate_id
+        - payments_session_id
+        - invoice_number
+        - amount
+      properties:
+        customer_id:
+          type: integer
+          format: int64
+          description: A unique ID for each customer.
+          minimum: 1
+          example: 3000000006081
+        mandate_id:
+          type: integer
+          format: int64
+          description: The unique identifier of the mandate to be executed.
+          minimum: 1
+          example: 3000000006083
+        payments_session_id:
+          type: integer
+          format: int64
+          description: A unique identifier for the payment session created for mandate execution.
+          minimum: 1
+          example: 3000000006082
+        amount:
+          type: number
+          format: double
+          description: The amount for mandate execution, with support for decimal places.
+          minimum: 0.01
+          example: 100
+        invoice_number:
+          type: string
+          description: The invoice number of the payment. The maximum length of the invoice number can be 50 characters.
+          maxLength: 50
+          example: INV12345
+        mandate_notification_id:
+          type: integer
+          format: int64
+          description: Mandate notification ID (optional). The mandate_notification_id which was sent in Notify for Mandate Execution API call. Applicable only when Notification and Execution APIs are called separately. Learn how to notify for a mandate execution using the <a href="#send-mandate-notification">Send Mandate Notification API</a>.
+          minimum: 1
+          example: 3000000009226
+        receipt_email:
+          type: string
+          format: email
+          description: Email address to which the payment receipt will be sent. It can be a maximum 100 characters.
+          maxLength: 100
+          example: xxx@abc.com
+        phone:
+          type: string
+          description: Phone number associated with the payment (maximum 20 characters).
+          maxLength: 20
+          example: 98XXXXXXXX
+        phone_country_code:
+          type: string
+          description: The phone country code associated with the mandate execution (defaults to IN if not provided).
+          example: IN
+        description:
+          type: string
+          description: The description of the payment session. The maximum length of the description can be 500 characters.
+          maxLength: 500
+          example: Testing Mandate Execution
+        reference_number:
+          type: string
+          description: Reference number (maximum 50 characters).
+          maxLength: 50
+          example: '2123'
+    mandate-execute-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Response code.
+          example: 0
+        message:
+          type: string
+          description: Response message.
+          example: Payment initiated
+        payment:
+          $ref: '#/components/schemas/mandate-execute-payment-response'
+    mandate-execute-payment-response:
+      type: object
+      properties:
+        payments_session_id:
+          type: string
+          description: Payment session ID.
+          example: '3000000006070'
+        invoice_number:
+          type: string
+          description: Invoice number.
+          example: INV12345
+        customer_id:
+          type: string
+          description: Customer ID. Learn how to create a customer using the <a href="/in/payments/api/v1/customers/#create-customer">Create Customer</a> API.
+          example: '3000000005005'
+        amount:
+          type: string
+          description: The amount to be executed, with support for decimal places.
+          example: '100.00'
+        amount_formatted:
+          type: string
+          description: Formatted payment amount with currency symbol.
+          example: ₹100.00
+        currency:
+          type: string
+          description: The currency of the payment amount, represented by a 3-letter ISO currency code (e.g., INR).
+          example: INR
+        status:
+          type: string
+          description: Payment status.
+          example: initiated
+        status_formatted:
+          type: string
+          description: Formatted payment status.
+          example: Initiated
+        statement_descriptor:
+          type: string
+          description: Statement descriptor.
+          example: Zoho Pay
+        description:
+          type: string
+          description: Description of the payment.
+          example: abc
+        reference_number:
+          type: string
+          description: Reference number.
+          example: '2123'
+        date:
+          type: integer
+          description: Payment date (Unix timestamp).
+          example: 1759665817
+        date_formatted:
+          type: string
+          description: Formatted payment date.
+          example: Oct 5, 2025, 05:33 pm
+        payment_method:
+          $ref: '#/components/schemas/payment-method'
+    payment-method:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Payment method type.
+          example: upi
+        type_formatted:
+          type: string
+          description: Formatted payment method type.
+          example: UPI
+    mandate-notification-retrieve-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Response code.
+          example: 0
+        message:
+          type: string
+          description: Response message.
+          example: success
+        mandate_notification:
+          $ref: '#/components/schemas/mandate-notification-detail-response'
+    mandate-notification-detail-response:
+      type: object
+      properties:
+        mandate_id:
+          type: string
+          description: Mandate ID.
+          example: '3000000005013'
+        mandate_notification_id:
+          type: string
+          description: Mandate notification ID.
+          example: '3000000006001'
+        customer_id:
+          type: string
+          description: Customer ID. Learn how to create a customer using the <a href="/in/payments/api/v1/customers/#create-customer">Create Customer</a> API.
+          example: '3000000005005'
+        mandate_amount:
+          type: string
+          description: Mandate amount.
+          example: '100.00'
+        mandate_amount_formatted:
+          type: string
+          description: Formatted mandate amount.
+          example: ₹100.00
+        currency:
+          type: string
+          description: The currency of the payment amount, represented by a 3-letter ISO currency code (e.g., INR).
+          example: INR
+        amount_rule:
+          type: string
+          description: Amount rule for the mandate.
+          example: variable
+        amount_rule_formatted:
+          type: string
+          description: Formatted amount rule.
+          example: Variable
+        notification_amount:
+          type: string
+          description: Notification amount.
+          example: '100.00'
+        notification_amount_formatted:
+          type: string
+          description: Formatted notification amount.
+          example: ₹100.00
+        notification_status:
+          type: string
+          description: Notification status.
+          example: succeeded
+        notification_status_formatted:
+          type: string
+          description: Formatted notification status.
+          example: Succeeded
+        description:
+          type: string
+          description: Description of the notification.
+          example: Testing Mandate Notification
+        invoice_number:
+          type: string
+          description: Invoice number.
+          example: INV12345
+        notification_date:
+          type: integer
+          description: Notification date (Unix timestamp).
+          example: 1759664066
+        notification_date_formatted:
+          type: string
+          description: Formatted notification date.
+          example: Oct 5, 2025, 05:04 pm
+        execution_date:
+          type: integer
+          description: Execution date (Unix timestamp).
+          example: 1759775399
+        execution_date_formatted:
+          type: string
+          description: Formatted execution date.
+          example: Oct 6, 2025, 11:59 pm
+        payment_method:
+          $ref: '#/components/schemas/mandate-payment-method'
+    mandate-enrollment-session-request:
+      type: object
+      required:
+        - amount
+        - currency
+        - customer_id
+        - type
+        - description
+        - mandate_details
+      properties:
+        amount:
+          type: string
+          description: The authorization amount for future-dated mandates or the initial execution amount for same-day mandates. Supports decimal values.<br/><b>Note:</b><br/>To authorize a future-dated mandate, you'll be required to charge ₹1 from the customer. This amount will be settled in your next payout.<br/>For same-day mandates, the minimum transaction amount is ₹6.
+          example: '100'
+        currency:
+          type: string
+          description: The currency of the payment amount, represented by a 3-letter ISO currency code (e.g., INR).
+          example: INR
+        customer_id:
+          type: string
+          description: A unique ID for each customer. Create customers using the <a href="/in/payments/api/v1/customers/#create-customer">Create Customer API</a> to establish mandates.
+          example: '3000000000927'
+        type:
+          type: string
+          description: 'The payment session type. This must be: <code>mandate_enrollment</code>.'
+          enum:
+            - mandate_enrollment
+          example: mandate_enrollment
+        description:
+          type: string
+          description: The description of the payment session. The maximum length of the description can be 500 characters.
+          example: Payment session for mandate enrollment
+        invoice_number:
+          type: string
+          description: The invoice number of the payment. The maximum length of the invoice number can be 50 characters.
+          example: INV-12345
+        max_retry_count:
+          $ref: '#/components/schemas/mandate-max-retry-count'
+        mandate_details:
+          $ref: '#/components/schemas/mandate-details'
+    mandate-execution-session-request:
+      type: object
+      required:
+        - amount
+        - currency
+        - customer_id
+        - type
+        - description
+        - invoice_number
+      properties:
+        amount:
+          type: string
+          description: The amount for mandate execution, with support for decimal places.
+          example: '100'
+        currency:
+          type: string
+          description: The currency of the payment amount, represented by a 3-letter ISO currency code (e.g., INR).
+          example: INR
+        customer_id:
+          type: string
+          description: A unique identifier for the customer. Customers are created to establish mandates under their account.
+          example: '3000000000927'
+        type:
+          type: string
+          description: 'The payment session type. This must be: <code>mandate_execution</code>.'
+          enum:
+            - mandate_execution
+          example: mandate_execution
+        description:
+          type: string
+          description: The description of the payment session. The maximum length of the description can be 500 characters.
+          example: Payment session for mandate execution
+        invoice_number:
+          type: string
+          description: The invoice number of the payment. The maximum length of the invoice number can be 50 characters.
+          example: INV-12345
+        max_retry_count:
+          $ref: '#/components/schemas/mandate-max-retry-count'
+    mandate-max-retry-count:
+      description: The maximum number of retry attempts allowed for this session. The value must be between 1 and 3. Default max retry count is 3.
+      type: integer
+      minimum: 1
+      maximum: 3
+      example: 2
+    mandate-details:
+      type: object
+      required:
+        - payment_method_type
+        - frequency
+        - amount_rule
+        - description
+      properties:
+        payment_method_type:
+          type: string
+          description: 'Payment method type must be: <code>upi</code>.'
+          example: upi
+        frequency:
+          type: string
+          description: 'Payment frequency. Allowed values: <code>as_presented</code>, <code>weekly</code>, <code>fortnightly</code>, <code>monthly</code>, <code>bi_monthly</code>, <code>half_yearly</code> or <code>yearly</code>.<br/><br/><b>Note:</b> Use <code>as_presented</code> for mandates with variable execution cycles. Use specific frequency types only for mandates with fixed execution intervals.'
+          example: weekly
+        description:
+          type: string
+          description: The description of the mandate. The maximum length of the description can be 500 characters.
+          example: Testing Mandate Creation
+        amount_rule:
+          type: string
+          description: 'Amount rule for the mandate. Allowed values: <code>variable</code> or <code>fixed</code>.'
+          example: variable
+        max_amount:
+          type: number
+          format: decimal
+          description: 'Maximum amount for the mandate.<br/><b>Conditional Requirements:</b><br/>• For <code>fixed</code> amount_rule: Optional, and should match amount (Defaults to amount).<br/>• For <code>variable</code> amount_rule: Required and must be ≥ amount.'
+          example: 2000
+        start_date:
+          type: string
+          description: Start date for the mandate (defaults to current date if not provided).
+          example: 22-07-2025
+        end_date:
+          type: string
+          description: End date for the mandate (defaults to 30 years from start_date if not provided).
+          example: 30-11-2025
+        debit_day:
+          type: integer
+          description: 'Debit day for the mandate (required for all frequencies except as_presented).<br/>Weekly: 1–7 (1=Sunday, 7=Saturday)<br/>Fortnightly: 1–16<br/>Monthly, bi-monthly, half-yearly, yearly: 1–31<br/>Not required for as_presented frequency'
+          example: 2
+        debit_rule:
+          type: string
+          description: 'Debit rule for mandate execution.<br/>Allowed values: <code>on</code>, <code>after</code>, <code>before</code>.<br/><code>on</code>: execution allowed on the debit day<br/><code>after</code>: execution allowed after the debit day<br/><code>before</code>: execution allowed before the debit day<br/>Not required for as_presented frequency.'
+          example: 'on'
+    mandate-list-item:
+      type: object
+      properties:
+        mandate_id:
+          type: string
+          description: Mandate ID.
+          example: '3000000005013'
+        customer_id:
+          type: string
+          description: A unique ID for each customer. Create customers using the <a href="/in/payments/api/v1/customers/#create-customer">Create Customer API</a> to establish mandates.
+          example: '3000000005005'
+        customer_name:
+          type: string
+          description: Customer name.
+          example: Akash
+        customer_email:
+          type: string
+          format: email
+          description: Customer email address.
+          example: xxx@abc.com
+        customer_phone:
+          type: string
+          description: Customer phone number.
+          example: +91 0000000000
+        status:
+          type: string
+          description: Mandate status.
+          example: active
+        status_formatted:
+          type: string
+          description: Formatted mandate status.
+          example: Active
+        amount:
+          type: string
+          description: Mandate amount.
+          example: '100.00'
+        amount_formatted:
+          type: string
+          description: Formatted mandate amount.
+          example: ₹100.00
+        currency:
+          type: string
+          description: The currency of the payment amount, represented by a 3-letter ISO currency code (e.g., INR).
+          example: INR
+        amount_rule:
+          type: string
+          description: Amount rule for the mandate.
+          example: variable
+        amount_rule_formatted:
+          type: string
+          description: Formatted amount rule.
+          example: Variable
+        description:
+          type: string
+          description: Description of the mandate.
+          example: Testing Mandate List
+        created_time:
+          type: integer
+          description: Created time (Unix timestamp).
+          example: 1759651184
+        created_time_formatted:
+          type: string
+          description: Formatted created time.
+          example: Oct 5, 2025, 01:29 pm
+        payment_method:
+          $ref: '#/components/schemas/payment-method'
+    mandate-list-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Response code.
+          example: 0
+        message:
+          type: string
+          description: Response message.
+          example: success
+        mandates:
+          type: array
+          description: List of mandates.
+          items:
+            $ref: '#/components/schemas/mandate-list-item'
+    payment-session-create-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Response code.
+          example: 0
+        message:
+          type: string
+          description: Response message.
+          example: success
+        payments_session:
+          $ref: '#/components/schemas/payment-session-response'
+    payment-session-response:
+      type: object
+      properties:
+        payments_session_id:
+          type: string
+          description: Unique identifier for the payment session. Learn how to create a payment session using the <a href="#create-mandate-enrollment-session">Create Payment Session</a> API.
+          example: '3000000100003'
+        currency:
+          type: string
+          description: The currency of the payment amount, represented by a 3-letter ISO currency code (e.g., INR).
+          example: INR
+        amount:
+          type: string
+          description: The amount for the payment session, with support for decimal places.
+          example: '100.00'
+        amount_formatted:
+          type: string
+          description: Formatted payment amount with currency symbol.
+          example: ₹100.00
+        created_time:
+          type: integer
+          description: Creation timestamp (Unix timestamp).
+          example: 1736140028
+        created_time_formatted:
+          type: string
+          description: Formatted creation timestamp.
+          example: Jan 6, 2025, 10:37 AM
+        meta_data:
+          type: array
+          description: Additional metadata.
+          items:
+            type: object
+          example: []
+        max_retry_count:
+          $ref: '#/components/schemas/mandate-max-retry-count'

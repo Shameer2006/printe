@@ -1,0 +1,231 @@
+openapi: 3.0.0
+info:
+  title: Customers
+  description: The Customer APIs provide access to create and retrieve customer details in Zoho Payments.
+  contact: {}
+  version: 1.0.0
+servers:
+  - url: https://payments.zoho.in/api/v1
+    description: API Endpoint
+tags:
+  - name: customers
+    description: Customers Module
+paths:
+  /customers:
+    post:
+      tags:
+        - customers
+      summary: Create Customer
+      description: This API endpoint allows you to create a new customer in Zoho Payments.
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/customer-create-request'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer-create-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.customers.CREATE
+  /customers/{customer_id}:
+    get:
+      tags:
+        - customers
+      summary: Retrieve Customer
+      description: This API endpoint allows you to retrieve the details of a specific customer.
+      parameters:
+        - name: customer_id
+          description: A unique identifier for the customer.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 173000002315107
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer-retrieve-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.customers.READ
+components:
+  parameters:
+    account_id:
+      name: account_id
+      description: The Zoho Payments account ID.
+      in: query
+      required: true
+      schema:
+        type: number
+        format: long
+      example: 23137556
+  schemas:
+    gendoc-attributes-schema:
+      $ref: '#/components/schemas/customer-response'
+    customer-response:
+      type: object
+      properties:
+        customer_id:
+          $ref: '#/components/schemas/customer_id'
+        name:
+          $ref: '#/components/schemas/name'
+        email:
+          $ref: '#/components/schemas/email'
+        phone:
+          $ref: '#/components/schemas/phone'
+        dialing_code:
+          $ref: '#/components/schemas/dialing_code'
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+    customer_id:
+      description: A unique identifier for the customer.
+      type: string
+      example: '1987000000724207'
+    name:
+      description: Name of the customer.
+      type: string
+      example: Charles
+    phone:
+      description: The phone number associated with the customer.
+      type: string
+      example: 98XXXXXXXX
+    phone_country_code:
+      description: The phone country code associated with the customer (defaults to IN if not provided).
+      type: string
+      example: IN
+    dialing_code:
+      description: The dialing code associated with the customer phone number.
+      type: string
+      example: '+91'
+    email:
+      description: Email address of the customer.
+      type: string
+      example: xxx@abc.com
+    status:
+      description: The status of the customer. (e.g., <code>active</code>)
+      type: string
+      example: active
+    created_time:
+      description: The timestamp (milliseconds) indicating when the customer was created.
+      type: integer
+      format: int64
+      example: 1708950672
+    last_modified_time:
+      description: The timestamp (milliseconds) indicating when the customer was last modified.
+      type: integer
+      format: int64
+      example: 1708950672
+    customer-create-request:
+      required:
+        - name
+        - email
+      type: object
+      properties:
+        name:
+          $ref: '#/components/schemas/name'
+        email:
+          $ref: '#/components/schemas/email'
+        phone:
+          $ref: '#/components/schemas/phone'
+        phone_country_code:
+          $ref: '#/components/schemas/phone_country_code'
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+    customer-create-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: Customer created
+          readOnly: true
+        customer:
+          $ref: '#/components/schemas/customer-response'
+    customer-retrieve-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        customer:
+          type: object
+          properties:
+            customer_id:
+              $ref: '#/components/schemas/customer_id'
+            name:
+              $ref: '#/components/schemas/name'
+            email:
+              $ref: '#/components/schemas/email'
+            phone:
+              $ref: '#/components/schemas/phone'
+            dialing_code:
+              $ref: '#/components/schemas/dialing_code'
+            meta_data:
+              $ref: ./common.yml#/components/schemas/meta_data
+            created_time:
+              $ref: '#/components/schemas/created_time'
+            last_modified_time:
+              $ref: '#/components/schemas/last_modified_time'
+    customers-retrieve-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        customers:
+          type: array
+          items:
+            type: object
+            properties:
+              customer_id:
+                $ref: '#/components/schemas/customer_id'
+              customer_name:
+                $ref: '#/components/schemas/name'
+              customer_email:
+                $ref: '#/components/schemas/email'
+              customer_phone:
+                $ref: '#/components/schemas/phone'
+              customer_dialing_code:
+                $ref: '#/components/schemas/dialing_code'
+              customer_status:
+                $ref: '#/components/schemas/status'
+              created_time:
+                $ref: '#/components/schemas/created_time'
+              last_modified_time:
+                $ref: '#/components/schemas/last_modified_time'
+  securitySchemes:
+    Zoho_Auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://accounts.zoho.in/oauth/v2/auth
+          scopes:
+            ZohoPay.customers.CREATE: Create Customer
+            ZohoPay.customers.READ: Fetch Customer Details

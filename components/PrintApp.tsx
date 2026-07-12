@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+<<<<<<< HEAD
+=======
+import { useSearchParams } from "next/navigation";
+>>>>>>> 67ee22ac2f24e065b7d21d61a0576b59fab2b36c
 import { FileUpload } from "@/components/FileUpload";
 import { PrintConfig } from "@/components/PrintConfig";
 import { Completion } from "@/components/Completion";
@@ -9,7 +13,7 @@ import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
 import { mergePDFs, generateOrderCode } from "@/lib/utils";
 import { db, storage } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "sonner";
 import { Loader2, ScanLine } from "lucide-react";
@@ -31,6 +35,8 @@ type Mode = "upload" | "ai-doc" | "a4-sheet";
 
 export default function PrintApp() {
   const { vendor, storeName, isPoweredBy } = useVendor();
+  const searchParams = useSearchParams();
+
 
   const [step, setStep] = useState<Step>("upload");
   const [mode, setMode] = useState<Mode>("upload");
@@ -47,6 +53,7 @@ export default function PrintApp() {
   const [copies, setCopies] = useState(1);
   const [showQRScanner, setShowQRScanner] = useState(false);
 
+<<<<<<< HEAD
   // Restore state after returning from Zoho's hosted payment page.
   // The redirect is a fresh page load, so React state (step, orderCode) is
   // reset — we rebuild it from the URL query params set by /api/zoho/callback.
@@ -69,6 +76,67 @@ export default function PrintApp() {
     if (urlStep) {
       window.history.replaceState({}, "", window.location.pathname);
     }
+=======
+  // Read URL params set by the payment gateway callback redirect
+  // Also handles mobile GPay fallback via Firestore real-time listener
+  useEffect(() => {
+    const urlStep = searchParams.get("step");
+    const urlOrderCode = searchParams.get("orderCode");
+    const urlError = searchParams.get("error");
+
+    if (urlStep === "complete" && urlOrderCode) {
+      // Normal redirect worked — show Completion and clean up
+      setOrderCode(urlOrderCode);
+      setStep("complete");
+      const savedLinkId = sessionStorage.getItem("printeg_payment_link_id") || "";
+      sessionStorage.removeItem("printeg_pending_order");
+      sessionStorage.removeItem("printeg_payment_link_id");
+      window.history.replaceState({}, "", window.location.pathname);
+
+      // Verify payment & update DB via server-side Admin SDK
+      fetch("/api/zoho/verify-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderCode: urlOrderCode, paymentLinkId: savedLinkId }),
+      }).catch((err) => console.error("Verify payment call failed:", err));
+
+      return;
+    }
+
+    if (urlStep === "payment" && urlError) {
+      toast.error(urlError);
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
+    }
+
+    // --- Mobile GPay fallback ---
+    // On mobile, GPay opens as a native app. When it returns to the browser,
+    // Zoho's success page redirect often doesn't fire. We save the orderCode
+    // to sessionStorage before leaving, then listen to Firestore here.
+    const pendingCode = sessionStorage.getItem("printeg_pending_order");
+    if (pendingCode) {
+      // Actively verify with server first
+      const savedLinkId = sessionStorage.getItem("printeg_payment_link_id") || "";
+      fetch("/api/zoho/verify-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderCode: pendingCode, paymentLinkId: savedLinkId }),
+      }).catch(() => {});
+
+      // Then listen for the PAID status update in Firestore
+      const unsubscribe = onSnapshot(doc(db, "orders", pendingCode), (snapshot) => {
+        if (snapshot.exists() && snapshot.data()?.payment_status === "PAID") {
+          setOrderCode(pendingCode);
+          setStep("complete");
+          sessionStorage.removeItem("printeg_pending_order");
+          sessionStorage.removeItem("printeg_payment_link_id");
+          unsubscribe();
+        }
+      });
+      return unsubscribe; // Clean up listener on unmount
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+>>>>>>> 67ee22ac2f24e065b7d21d61a0576b59fab2b36c
   }, []);
 
   // --- Razorpay checkout helper (commented out — kept for reference) ---
@@ -141,6 +209,12 @@ export default function PrintApp() {
 
     if (!data.paymentUrl) {
       throw new Error(data.error || "Failed to create payment link");
+    }
+
+    // Save orderCode and paymentLinkId for verification after return
+    sessionStorage.setItem("printeg_pending_order", code);
+    if (data.paymentLinkId) {
+      sessionStorage.setItem("printeg_payment_link_id", data.paymentLinkId);
     }
 
     // Redirect user to Zoho's hosted payment page
@@ -535,6 +609,7 @@ export default function PrintApp() {
                   src={heroImage}
                   alt="Print Smart"
                   fill
+                  sizes="(max-width: 768px) 100vw, 448px"
                   className="object-contain"
                   priority
                   placeholder="blur"

@@ -1,0 +1,283 @@
+openapi: 3.0.0
+info:
+  title: Payment Session
+  description: The Payment Session represents a single payment initiation using Zoho Payments. It includes key details such as the session ID, amount, currency, and the time when the session was created. <br/>Each Payment Session will be valid for <b>15 minutes</b> only.
+  contact: {}
+  version: 1.0.0
+servers:
+  - url: https://payments.zoho.in/api/v1
+    description: API Endpoint
+tags:
+  - name: payment-session
+    description: Payment Session Module
+paths:
+  /paymentsessions:
+    post:
+      tags:
+        - payment-session
+      summary: Create Payment Session
+      description: This API endpoint allows you to create a new Payment Session in Zoho Payments. Initiate a payment with a specific amount and currency.
+      parameters:
+        - $ref: '#/components/parameters/account_id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/payment-session-request'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payment-session-create-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.CREATE
+  /paymentsessions/{payments_session_id}:
+    get:
+      tags:
+        - payment-session
+      summary: Retrieve Payment Session
+      description: This API endpoint allows you to retrieve the details of the latest payment session.
+      parameters:
+        - name: payments_session_id
+          description: The Payment Session ID is a unique identifier for the session.
+          in: path
+          required: true
+          schema:
+            type: number
+            format: long
+          example: 173000002315107
+        - $ref: '#/components/parameters/account_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/payment-session-payment-response'
+      deprecated: false
+      security:
+        - Zoho_Auth:
+            - ZohoPay.payments.READ
+components:
+  parameters:
+    account_id:
+      name: account_id
+      description: The Zoho Payments account ID.
+      in: query
+      required: true
+      schema:
+        type: number
+        format: long
+      example: 23137556
+  schemas:
+    gendoc-attributes-schema:
+      $ref: '#/components/schemas/payment-session-response'
+    payment-session-response:
+      type: object
+      properties:
+        payments_session_id:
+          $ref: '#/components/schemas/payments-session-id'
+        currency:
+          $ref: '#/components/schemas/currency'
+        amount:
+          $ref: '#/components/schemas/amount-response'
+        created_time:
+          $ref: '#/components/schemas/created-time'
+        expiry_time:
+          $ref: '#/components/schemas/expiry-time'
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+        description:
+          $ref: '#/components/schemas/description'
+        invoice_number:
+          $ref: '#/components/schemas/invoice_number'
+        reference_number:
+          $ref: '#/components/schemas/reference_number'
+        max_retry_count:
+          $ref: '#/components/schemas/max-retry-count'
+    amount:
+      description: The amount for which the payment session was created.
+      type: number
+      format: double
+      example: 100.5
+    currency:
+      description: The currency of the payment amount, represented by a 3-letter ISO currency code <br>(e.g., <code class="url">INR</code>).
+      type: string
+      example: INR
+    description:
+      description: The description of the payment session. The maximum length of the description can be 500 characters.
+      type: string
+      example: 'Payment for Order #12345'
+    invoice_number:
+      description: The invoice number of the payment session. The maximum length of the invoice number can be 50 characters.
+      type: string
+      example: INV-12345
+    reference_number:
+      description: A reference to identify the transaction. The maximum length can be 50 characters.
+      type: string
+      example: reference_123
+    max-retry-count:
+      description: The maximum number of retry payment attempts allowed for this session. The value must be between 1 and 5. Default max retry count is 5.
+      type: integer
+      minimum: 1
+      maximum: 5
+      example: 3
+    created-time:
+      description: The timestamp (milliseconds) indicating when the payment session was created.
+      type: integer
+      format: int64
+      example: 1708950672
+    expiry-time:
+      description: The timestamp (milliseconds) indicating when the payment session will expire.
+      type: integer
+      format: int64
+      example: 1708951572
+    payments-session-id:
+      description: The Payment Session ID is a unique identifier for the session.
+      type: string
+      example: '2000000012001'
+    amount-response:
+      description: Amount with which payment session was created
+      type: string
+      example: '100.50'
+    status:
+      description: Payment Session status is either <code>failed</code>, <code>created</code>, <code>in_progress</code>, and <code>succeeded</code>.
+      type: string
+      example: succeeded
+    payment_id:
+      description: A unique ID for payments made through Zoho Payments.
+      type: string
+      example: '173000002314883'
+    payments:
+      description: List of Payments in the Session
+      type: array
+      items:
+        type: object
+        properties:
+          payment_id:
+            $ref: '#/components/schemas/payment_id'
+          status:
+            $ref: '#/components/schemas/status'
+          created_time:
+            $ref: '#/components/schemas/created-time'
+    payments_session:
+      description: Payment session
+      type: object
+      properties:
+        payments_session_id:
+          $ref: '#/components/schemas/payments-session-id'
+        currency:
+          $ref: '#/components/schemas/currency'
+        amount:
+          $ref: '#/components/schemas/amount-response'
+        status:
+          $ref: '#/components/schemas/status'
+        created_time:
+          $ref: '#/components/schemas/created-time'
+        expiry_time:
+          $ref: '#/components/schemas/expiry-time'
+        payments:
+          $ref: '#/components/schemas/payments'
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+        description:
+          $ref: '#/components/schemas/description'
+        invoice_number:
+          $ref: '#/components/schemas/invoice_number'
+        reference_number:
+          $ref: '#/components/schemas/reference_number'
+        max_retry_count:
+          $ref: '#/components/schemas/max-retry-count'
+    payment-session-request:
+      required:
+        - amount
+        - currency
+        - description
+      type: object
+      properties:
+        amount:
+          description: The amount to be charged, with support for decimal places.
+          type: number
+          format: double
+          example: 100.5
+        currency:
+          $ref: '#/components/schemas/currency'
+        expires_in:
+          description: The expiration time for the payment session in seconds. The value must be between 300 (5 minutes) and 900 (15 minutes). Default expiry is 900 seconds (15 minutes).
+          type: integer
+          minimum: 300
+          maximum: 900
+          example: 900
+        transfer_details:
+          description: Indicates the way an incoming payment is split among connected accounts. This is applicable only if the feature is enabled. Each entry includes a connected_account_id and an amount. The number of entries can range from 0 to 20. <details> <summary class="link"> <span class="show-hide-attribute-text" data-showhide="Show Sub-Attributes">Show Sub-Attributes</span> <img src="/in/payments/api/v1/images/dropdown-arrow.svg" class="arrow-icon" alt="arrow" width="9px" height="9px"> </summary> <div class="attribute-wrapper"> <div class="row attribute small-line" id="overview-transfer_details-connected_account_id"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> connected_account_id </div> <div class="property-datatype"> long </div> <div class="property-kind" id="Required"> </div> </div> <div class="prop-descrip">The unique identifier of the connected account.</div> </div> </div> <div class="row attribute small-line" id="overview-transfer_details-amount"> <div class="property-wrapper"> <div class="table-flex"> <div class="property"> amount </div> <div class="property-datatype"> double </div> <div class="property-kind" id="Required"> </div> </div> <div class="prop-descrip">The amount to be transferred to the connected account.</div> </div> </div> </div> </details>
+          type: array
+          minItems: 0
+          maxItems: 20
+          items:
+            type: object
+            properties:
+              connected_account_id:
+                description: The unique identifier of the connected account.
+                type: number
+                format: long
+              amount:
+                description: The amount to be transferred to the connected account.
+                type: number
+                format: double
+            required:
+              - connected_account_id
+              - amount
+          example:
+            - connected_account_id: 23137556
+              amount: 10
+            - connected_account_id: 23137556
+              amount: 20.5
+        meta_data:
+          $ref: ./common.yml#/components/schemas/meta_data
+        description:
+          $ref: '#/components/schemas/description'
+        invoice_number:
+          $ref: '#/components/schemas/invoice_number'
+        reference_number:
+          $ref: '#/components/schemas/reference_number'
+        max_retry_count:
+          $ref: '#/components/schemas/max-retry-count'
+    payment-session-create-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        payments_session:
+          $ref: '#/components/schemas/payment-session-response'
+    payment-session-payment-response:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+          readOnly: true
+        message:
+          type: string
+          example: success
+          readOnly: true
+        payments_session:
+          $ref: '#/components/schemas/payments_session'
+  securitySchemes:
+    Zoho_Auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://accounts.zoho.in/oauth/v2/auth
+          scopes:
+            ZohoPay.payments.CREATE: Create Payment Session
+            ZohoPay.payments.READ: Fetch Payments Details
