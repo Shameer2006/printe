@@ -58,9 +58,12 @@ export async function POST(req: NextRequest) {
         const eventType = payload.event_type;
 
         if (eventType === "payment_link.paid") {
-            const paymentLink = payload.data?.payment_link;
+            const paymentLink = payload.event_object?.payment_links;
             const orderCode = paymentLink?.reference_id;
-            const transactionId = paymentLink?.payment_id || paymentLink?.payment_link_id;
+            const payments = paymentLink?.payments;
+            const transactionId = payments?.length
+                ? payments[payments.length - 1]?.payment_id
+                : paymentLink?.payment_link_id;
 
             if (orderCode) {
                 const db = getAdminDb();
