@@ -50,12 +50,11 @@ export async function POST(req: NextRequest) {
 
         const data = await response.json();
 
-<<<<<<< HEAD
-        if (data.code === 0 && data.payment_link) {
-            const paymentLinkId = data.payment_link.payment_link_id;
+        if (data.code === 0 && data.payment_links) {
+            const paymentLinkId = data.payment_links.payment_link_id;
 
-            // Store the payment link id on the order so the callback can
-            // verify the real payment status with Zoho after redirect.
+            // Store the payment link id on the order so the callback and
+            // verify-payment endpoints can check the real payment status with Zoho.
             try {
                 await updateDoc(doc(db, "orders", orderCode), {
                     zoho_payment_link_id: paymentLinkId,
@@ -65,14 +64,8 @@ export async function POST(req: NextRequest) {
             }
 
             return NextResponse.json({
-                paymentUrl: data.payment_link.url,
-                paymentLinkId,
-=======
-        if (data.code === 0 && data.payment_links) {
-            return NextResponse.json({
                 paymentUrl: data.payment_links.url,
-                paymentLinkId: data.payment_links.payment_link_id,
->>>>>>> 67ee22ac2f24e065b7d21d61a0576b59fab2b36c
+                paymentLinkId,
             });
         } else {
             console.error("Zoho Payment Link Creation Error:", data);

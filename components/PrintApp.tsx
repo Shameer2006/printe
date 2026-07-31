@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-<<<<<<< HEAD
-=======
 import { useSearchParams } from "next/navigation";
->>>>>>> 67ee22ac2f24e065b7d21d61a0576b59fab2b36c
 import { FileUpload } from "@/components/FileUpload";
 import { PrintConfig } from "@/components/PrintConfig";
 import { Completion } from "@/components/Completion";
@@ -53,30 +50,6 @@ export default function PrintApp() {
   const [copies, setCopies] = useState(1);
   const [showQRScanner, setShowQRScanner] = useState(false);
 
-<<<<<<< HEAD
-  // Restore state after returning from Zoho's hosted payment page.
-  // The redirect is a fresh page load, so React state (step, orderCode) is
-  // reset — we rebuild it from the URL query params set by /api/zoho/callback.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlStep = params.get("step");
-    const urlOrderCode = params.get("orderCode");
-    const urlError = params.get("error");
-
-    if (urlStep === "complete" && urlOrderCode) {
-      setOrderCode(urlOrderCode);
-      setStep("complete");
-    } else if (urlStep === "payment") {
-      setStep("payment");
-      if (urlError) toast.error(urlError);
-    }
-
-    // Clean the query params from the URL so a refresh / "Start New Order"
-    // begins fresh instead of re-triggering the completion screen.
-    if (urlStep) {
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-=======
   // Read URL params set by the payment gateway callback redirect
   // Also handles mobile GPay fallback via Firestore real-time listener
   useEffect(() => {
@@ -136,7 +109,6 @@ export default function PrintApp() {
       return unsubscribe; // Clean up listener on unmount
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
->>>>>>> 67ee22ac2f24e065b7d21d61a0576b59fab2b36c
   }, []);
 
   // --- Razorpay checkout helper (commented out — kept for reference) ---
