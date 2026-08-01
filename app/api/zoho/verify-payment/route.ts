@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { getZohoAccessToken } from "@/lib/zoho-auth";
 import { getAdminDb } from "@/lib/firebase-admin";
 
+// Temporary diagnostics: records every verify-payment call to Firestore so we
+// can confirm from the Firebase console whether the frontend even reaches this
+// endpoint after a Zoho redirect, and what Zoho's live status check returns.
+// Safe to delete this collection/helper once the payment flow is confirmed working.
+async function logVerifyDebug(entry: Record<string, any>) {
+    try {
+        const db = getAdminDb();
+        await db.collection("zoho_webhook_debug").add({
+            receivedAt: new Date().toISOString(),
+            source: "verify-payment",
+            ...entry,
+        });
+    } catch (err) {
+        console.error("Verify Payment: failed to write debug log:", err);
+    }
+}
+
 /**
  * POST /api/zoho/verify-payment
  *
@@ -11,8 +28,11 @@ import { getAdminDb } from "@/lib/firebase-admin";
  * Body: { orderCode: string, paymentLinkId?: string }
  */
 export async function POST(req: NextRequest) {
+    let orderCode: string | undefined;
+    let paymentLinkId: string | undefined;
+
     try {
-        const { orderCode, paymentLinkId } = await req.json();
+        ({ orderCode, paymentLinkId } = await req.json());
 
         if (!orderCode) {
             return NextResponse.json({ error: "Missing orderCode" }, { status: 400 });
@@ -20,6 +40,7 @@ export async function POST(req: NextRequest) {
 
         const accountId = process.env.ZOHO_PAYMENTS_ACCOUNT_ID;
         if (!accountId) {
+            await logVerifyDebug({ orderCode, error: "ZOHO_PAYMENTS_ACCOUNT_ID not configured" });
             return NextResponse.json({ error: "Payment gateway not configured" }, { status: 500 });
         }
 
@@ -28,6 +49,7 @@ export async function POST(req: NextRequest) {
         const orderSnap = await orderRef.get();
 
         if (!orderSnap.exists) {
+            await logVerifyDebug({ orderCode, error: "Order not found" });
             return NextResponse.json({ error: "Order not found" }, { status: 404 });
         }
 
@@ -35,6 +57,7 @@ export async function POST(req: NextRequest) {
 
         // Already paid — skip Zoho call
         if (orderData?.payment_status === "PAID") {
+            await logVerifyDebug({ orderCode, alreadyPaid: true });
             return NextResponse.json({ verified: true, alreadyPaid: true });
         }
 
@@ -55,6 +78,13 @@ export async function POST(req: NextRequest) {
             });
 
             const data = await response.json();
+
+            await logVerifyDebug({
+                orderCode,
+                linkId,
+                httpStatus: response.status,
+                zohoResponsePreview: JSON.stringify(data).slice(0, 3000),
+            });
 
             if (data.code === 0 && data.payment_links) {
                 const linkStatus = data.payment_links.status;
@@ -88,6 +118,7 @@ export async function POST(req: NextRequest) {
 
         // No paymentLinkId available — mark as paid based on callback trust
         // (Zoho only redirects to return_url on successful payments)
+        await logVerifyDebug({ orderCode, noLinkId: true });
         await orderRef.update({
             payment_status: "PAID",
             paid_at: new Date().toISOString(),
@@ -99,6 +130,7 @@ export async function POST(req: NextRequest) {
 
     } catch (error: any) {
         console.error("Verify Payment Error:", error);
+        await logVerifyDebug({ orderCode, error: error.message });
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
