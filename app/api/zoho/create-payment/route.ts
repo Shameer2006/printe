@@ -1,15 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getZohoAccessToken } from "@/lib/zoho-auth";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { getAdminDb } from "@/lib/firebase-admin";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { orderCode, amount, mobileNumber } = body;
+        const { orderCode } = body;
 
-        if (!orderCode || !amount || !mobileNumber) {
-            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        if (!orderCode) {
+            return NextResponse.json({ error: "orderCode is required" }, { status: 400 });
+        }
+
+        // Price the link from the stored order, not from the request body. The browser
+        // supplies neither the amount nor the number here, so a tampered request cannot
+        // create a ₹1 link for a ₹100 order — and reconciliation compares the payment
+        // against this same figure.
+        const orderRef = getAdminDb().collection("orders").doc(orderCode);
+        const orderSnap = await orderRef.get();
+        if (!orderSnap.exists) {
+            return NextResponse.json({ error: "Order not found" }, { status: 404 });
+        }
+
+        const order = orderSnap.data() || {};
+        const amount = Number(order.amount);
+        const mobileNumber = order.mobileNumber;
+
+        if (!Number.isFinite(amount) || amount <= 0 || !mobileNumber) {
+            return NextResponse.json({ error: "Order is missing an amount or mobile number" }, { status: 400 });
         }
 
         const accountId = process.env.ZOHO_PAYMENTS_ACCOUNT_ID;
@@ -23,7 +42,7 @@ export async function POST(req: NextRequest) {
 
         // Zoho Payments API v1 - exact structure from official docs
         const payload: any = {
-            amount: parseFloat(amount),
+            amount,
             currency: "INR",
             phone: mobileNumber,
             phone_country_code: "IN",
@@ -53,13 +72,18 @@ export async function POST(req: NextRequest) {
         if (data.code === 0 && data.payment_links) {
             const paymentLinkId = data.payment_links.payment_link_id;
 
-            // Store the payment link id on the order for reference/support lookups.
+            // Store the payment link id on the order BEFORE handing the customer to Zoho.
+            // Reconciliation looks the payment up by this id, so an order without it cannot
+            // be confirmed as paid if the redirect and the webhook both fail. Better to fail
+            // here than to take money we cannot reconcile.
             try {
-                await updateDoc(doc(db, "orders", orderCode), {
-                    zoho_payment_link_id: paymentLinkId,
-                });
+                await orderRef.set({ zoho_payment_link_id: paymentLinkId }, { merge: true });
             } catch (err) {
                 console.error("Failed to store zoho_payment_link_id on order:", err);
+                return NextResponse.json(
+                    { error: "Could not prepare the order for payment. Please try again." },
+                    { status: 500 }
+                );
             }
 
             return NextResponse.json({
