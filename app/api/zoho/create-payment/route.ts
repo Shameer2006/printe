@@ -53,8 +53,7 @@ export async function POST(req: NextRequest) {
         if (data.code === 0 && data.payment_links) {
             const paymentLinkId = data.payment_links.payment_link_id;
 
-            // Store the payment link id on the order so the callback and
-            // verify-payment endpoints can check the real payment status with Zoho.
+            // Store the payment link id on the order for reference/support lookups.
             try {
                 await updateDoc(doc(db, "orders", orderCode), {
                     zoho_payment_link_id: paymentLinkId,

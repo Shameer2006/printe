@@ -25,11 +25,10 @@ export async function GET(req: NextRequest) {
 
     // --- Payment Callback Flow ---
     // After payment, Zoho redirects with ?orderCode=...&status=...
-    // Zoho only invokes this return_url after a successful payment, but the
-    // real confirmation happens via the signed webhook and the client-triggered
-    // /api/zoho/verify-payment call. This route just gives the user a fast,
-    // optimistic redirect and best-effort DB update using the Firebase Admin
-    // SDK (bypasses security rules).
+    // Zoho only invokes this return_url after a successful payment, so this is
+    // the single place that marks an order PAID — via the Firebase Admin SDK
+    // (bypasses security rules). The signed webhook is a passive backup for
+    // cases where the browser never makes it back here.
     const orderCode = searchParams.get("orderCode");
     const status = searchParams.get("status");
     const redirectUrl = new URL("/", req.url);
@@ -57,7 +56,7 @@ export async function GET(req: NextRequest) {
             console.log(`Zoho Callback: Order ${orderCode} marked as PAID`);
         } catch (error) {
             console.error(`Zoho Callback: Failed to update order ${orderCode}:`, error);
-            // Still redirect user to completion — verify-payment API will retry
+            // Still redirect user to completion — the webhook will retry the DB update
         }
 
         redirectUrl.searchParams.set("step", "complete");

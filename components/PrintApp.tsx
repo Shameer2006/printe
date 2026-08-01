@@ -61,18 +61,8 @@ export default function PrintApp() {
       // Normal redirect worked — show Completion and clean up
       setOrderCode(urlOrderCode);
       setStep("complete");
-      const savedLinkId = sessionStorage.getItem("printeg_payment_link_id") || "";
       sessionStorage.removeItem("printeg_pending_order");
-      sessionStorage.removeItem("printeg_payment_link_id");
       window.history.replaceState({}, "", window.location.pathname);
-
-      // Verify payment & update DB via server-side Admin SDK
-      fetch("/api/zoho/verify-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderCode: urlOrderCode, paymentLinkId: savedLinkId }),
-      }).catch((err) => console.error("Verify payment call failed:", err));
-
       return;
     }
 
@@ -85,18 +75,11 @@ export default function PrintApp() {
     // --- Mobile GPay fallback ---
     // On mobile, GPay opens as a native app. When it returns to the browser,
     // Zoho's success page redirect often doesn't fire. We save the orderCode
-    // to sessionStorage before leaving, then listen to Firestore here.
+    // to sessionStorage before leaving, then listen to Firestore here for the
+    // callback route to mark the order PAID.
     const pendingCode = sessionStorage.getItem("printeg_pending_order");
     if (pendingCode) {
-      // Actively verify with server first
-      const savedLinkId = sessionStorage.getItem("printeg_payment_link_id") || "";
-      fetch("/api/zoho/verify-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderCode: pendingCode, paymentLinkId: savedLinkId }),
-      }).catch(() => {});
-
-      // Then listen for the PAID status update in Firestore
+      // Listen for the PAID status update in Firestore
       const unsubscribe = onSnapshot(doc(db, "orders", pendingCode), (snapshot) => {
         if (snapshot.exists() && snapshot.data()?.payment_status === "PAID") {
           setOrderCode(pendingCode);
@@ -183,11 +166,9 @@ export default function PrintApp() {
       throw new Error(data.error || "Failed to create payment link");
     }
 
-    // Save orderCode and paymentLinkId for verification after return
+    // Save orderCode so the mobile GPay fallback listener can find it if
+    // Zoho's redirect back to us doesn't fire.
     sessionStorage.setItem("printeg_pending_order", code);
-    if (data.paymentLinkId) {
-      sessionStorage.setItem("printeg_payment_link_id", data.paymentLinkId);
-    }
 
     // Redirect user to Zoho's hosted payment page
     window.location.href = data.paymentUrl;

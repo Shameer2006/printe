@@ -2,7 +2,7 @@
  * Firebase Admin SDK — for server-side Firestore operations
  *
  * The Admin SDK bypasses Firestore security rules, ensuring writes
- * always succeed from API routes (callback, webhook, verify-payment).
+ * always succeed from API routes (callback, webhook).
  *
  * Required env vars (from Firebase Console → Project Settings → Service Accounts):
  *   FIREBASE_ADMIN_PROJECT_ID
