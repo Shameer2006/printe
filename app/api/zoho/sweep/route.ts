@@ -12,6 +12,12 @@ import { verifyAndMarkOrderPaid } from "@/lib/orders";
  *
  * Runs unattended, so it is authenticated by a shared secret rather than a session:
  *   Authorization: Bearer $CRON_SECRET   (Vercel Cron sends this automatically)
+ *   ?secret=$CRON_SECRET                 (for external schedulers that cannot set headers)
+ *
+ * Scheduling: Vercel's Hobby plan caps crons at one run per day, so vercel.json only
+ * carries a daily backstop. Because this looks back MAX_AGE_MS, a daily pass still
+ * recovers anything the live channels missed — just slowly. For minutes-level recovery,
+ * point a free external scheduler at the ?secret= form.
  */
 
 export const dynamic = "force-dynamic";
