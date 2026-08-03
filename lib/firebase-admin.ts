@@ -58,19 +58,45 @@ function readServiceAccountJson(): { projectId: string; clientEmail: string; pri
     if (!raw) return null;
 
     let text = raw;
+
+    // Dashboards and .env parsers routinely store a value with its surrounding quotes.
+    if (
+        (text.startsWith('"') && text.endsWith('"')) ||
+        (text.startsWith("'") && text.endsWith("'"))
+    ) {
+        text = text.slice(1, -1).trim();
+    }
+
     if (!text.startsWith("{")) {
-        try {
-            text = Buffer.from(raw, "base64").toString("utf8");
-        } catch {
-            throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON is neither JSON nor valid base64");
+        // Buffer.from(..., "base64") never throws — it silently skips characters it does
+        // not recognise and returns whatever it managed to decode. So a value that was
+        // truncated by a bad copy-paste, or wrapped across lines by an editor, produces
+        // plausible-looking garbage rather than an error, and the real cause only shows
+        // up as an opaque "not JSON" further down. Strip whitespace, then verify the
+        // decode round-trips before trusting it.
+        const compact = text.replace(/\s+/g, "");
+        const decoded = Buffer.from(compact, "base64").toString("utf8");
+
+        if (!decoded.trimStart().startsWith("{")) {
+            throw new Error(
+                `FIREBASE_SERVICE_ACCOUNT_JSON is neither raw JSON nor valid base64 ` +
+                `(${raw.length} chars, starts with "${raw.slice(0, 4)}"). ` +
+                `A service-account key base64-encodes to roughly 3,000 characters and begins with "eyJ" — ` +
+                `a much shorter value means the paste was truncated. Re-copy the whole value.`
+            );
         }
+        text = decoded;
     }
 
     let parsed: { project_id?: string; client_email?: string; private_key?: string };
     try {
         parsed = JSON.parse(text);
     } catch {
-        throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON could not be parsed as JSON");
+        throw new Error(
+            `FIREBASE_SERVICE_ACCOUNT_JSON could not be parsed as JSON ` +
+            `(env value ${raw.length} chars, decoded to ${text.length} chars). ` +
+            `Most likely the value was truncated in transit — a complete key is ~2,300 characters of JSON.`
+        );
     }
 
     if (!parsed.client_email || !parsed.private_key) {
