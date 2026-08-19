@@ -62,17 +62,25 @@ export async function GET(req: NextRequest) {
         return NextResponse.redirect(redirectUrl, 303);
     }
 
-    const result = await verifyAndMarkOrderPaid(orderCode, "zoho_callback");
+    // The vendor lookup doesn't depend on the verification outcome (or vice versa) —
+    // run them concurrently instead of round-tripping twice in sequence, so a customer
+    // who already had to wait through Zoho's checkout isn't kept waiting here too.
+    const [result, vendorSlug] = await Promise.all([
+        verifyAndMarkOrderPaid(orderCode, "zoho_callback"),
+        getAdminDb()
+            .collection("orders")
+            .doc(orderCode)
+            .get()
+            .then((snap) => (snap.exists ? (snap.data()?.vendorSlug as string | undefined) : undefined))
+            .catch((error) => {
+                console.error(`Zoho Callback: vendor lookup failed for ${orderCode}:`, error);
+                return undefined;
+            }),
+    ]);
     console.log(`Zoho Callback: order ${orderCode} → ${result.status}`);
 
     // Keep the customer inside the vendor storefront they ordered from.
-    try {
-        const snap = await getAdminDb().collection("orders").doc(orderCode).get();
-        const vendorSlug = snap.exists ? (snap.data()?.vendorSlug as string | undefined) : undefined;
-        if (vendorSlug) redirectUrl.pathname = `/store/${vendorSlug}`;
-    } catch (error) {
-        console.error(`Zoho Callback: vendor lookup failed for ${orderCode}:`, error);
-    }
+    if (vendorSlug) redirectUrl.pathname = `/store/${vendorSlug}`;
 
     switch (result.status) {
         case "updated":

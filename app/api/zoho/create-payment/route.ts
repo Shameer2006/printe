@@ -13,12 +13,21 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "orderCode is required" }, { status: 400 });
         }
 
+        const accountId = process.env.ZOHO_PAYMENTS_ACCOUNT_ID;
+        if (!accountId) {
+            console.error("ZOHO_PAYMENTS_ACCOUNT_ID not configured");
+            return NextResponse.json({ error: "Payment gateway not configured" }, { status: 500 });
+        }
+
         // Price the link from the stored order, not from the request body. The browser
         // supplies neither the amount nor the number here, so a tampered request cannot
         // create a ₹1 link for a ₹100 order — and reconciliation compares the payment
         // against this same figure.
+        //
+        // The order read and the Zoho token refresh are independent of each other —
+        // run them concurrently rather than waiting on one before starting the other.
         const orderRef = getAdminDb().collection("orders").doc(orderCode);
-        const orderSnap = await orderRef.get();
+        const [orderSnap, accessToken] = await Promise.all([orderRef.get(), getZohoAccessToken()]);
         if (!orderSnap.exists) {
             return NextResponse.json({ error: "Order not found" }, { status: 404 });
         }
@@ -31,13 +40,6 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Order is missing an amount or mobile number" }, { status: 400 });
         }
 
-        const accountId = process.env.ZOHO_PAYMENTS_ACCOUNT_ID;
-        if (!accountId) {
-            console.error("ZOHO_PAYMENTS_ACCOUNT_ID not configured");
-            return NextResponse.json({ error: "Payment gateway not configured" }, { status: 500 });
-        }
-
-        const accessToken = await getZohoAccessToken();
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
         // Zoho Payments API v1 - exact structure from official docs
