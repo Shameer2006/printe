@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { getAdminDb } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
     try {
@@ -32,16 +31,17 @@ export async function POST(req: NextRequest) {
 
         // Update database according to the response
         if (orderCode) {
-            const orderRef = doc(db, "orders", orderCode);
+            const db = getAdminDb();
+            const orderRef = db.collection("orders").doc(orderCode);
 
             if (parsedResponse.success && parsedResponse.code === "PAYMENT_SUCCESS") {
-                await updateDoc(orderRef, {
+                await orderRef.update({
                     payment_status: "PAID",
                     transaction_id: parsedResponse.data.transactionId,
                     paymentInstrument: parsedResponse.data.paymentInstrument
                 });
             } else {
-                await updateDoc(orderRef, {
+                await orderRef.update({
                     payment_status: "FAILED",
                     transaction_id: parsedResponse.data.transactionId,
                     failureReason: parsedResponse.message

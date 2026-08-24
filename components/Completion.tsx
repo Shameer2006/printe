@@ -11,9 +11,10 @@ interface CompletionProps {
     orderCode: string;
     mobileNumber: string;
     totalCost: number;
+    onStartNewOrder?: () => void;
 }
 
-export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: initialCost }: CompletionProps) {
+export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: initialCost, onStartNewOrder }: CompletionProps) {
     const [copied, setCopied] = useState(false);
     const [mobileNumber, setMobileNumber] = useState(initialMobile);
     const [totalCost, setTotalCost] = useState(initialCost);
@@ -230,7 +231,16 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
                     {isGenerating ? "Generating..." : "Download Receipt"}
                 </button>
                 <button
-                    onClick={() => window.location.reload()}
+                    onClick={() => {
+                        sessionStorage.removeItem("printeg_completed_order");
+                        sessionStorage.removeItem("printeg_pending_order");
+                        sessionStorage.removeItem("printeg_payment_link_id");
+                        if (onStartNewOrder) {
+                            onStartNewOrder();
+                        } else {
+                            window.location.href = window.location.pathname;
+                        }
+                    }}
                     className="w-full h-14 rounded-2xl bg-gray-900 text-white font-bold hover:bg-black transition-colors"
                 >
                     Start New Order

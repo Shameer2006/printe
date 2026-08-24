@@ -86,16 +86,11 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // No paymentLinkId available — mark as paid based on callback trust
-        // (Zoho only redirects to return_url on successful payments)
-        await orderRef.update({
-            payment_status: "PAID",
-            paid_at: new Date().toISOString(),
-            paid_via: "callback_trust",
+        // No paymentLinkId available — cannot verify with Zoho
+        return NextResponse.json({
+            verified: false,
+            error: "No payment link ID found on order to verify with Zoho",
         });
-
-        console.log(`Verify Payment: Order ${orderCode} marked PAID (callback trust, no linkId)`);
-        return NextResponse.json({ verified: true });
 
     } catch (error: any) {
         console.error("Verify Payment Error:", error);

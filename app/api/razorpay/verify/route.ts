@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { getAdminDb } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
     try {
@@ -27,10 +26,11 @@ export async function POST(req: NextRequest) {
 
         const isValid = expectedSignature === razorpay_signature;
 
-        const orderRef = doc(db, "orders", orderCode);
+        const db = getAdminDb();
+        const orderRef = db.collection("orders").doc(orderCode);
 
         if (isValid) {
-            await updateDoc(orderRef, {
+            await orderRef.update({
                 payment_status: "PAID",
                 razorpay_order_id,
                 razorpay_payment_id,
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
             return NextResponse.json({ success: true, verified: true });
         } else {
-            await updateDoc(orderRef, {
+            await orderRef.update({
                 payment_status: "FAILED",
                 failureReason: "Signature verification failed",
             });

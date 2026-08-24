@@ -52,43 +52,23 @@ export default function PrintApp() {
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   // Read URL params set by the payment gateway callback redirect
-  // Also handles mobile GPay fallback via Firestore real-time listener
+  // Also handles mobile GPay fallback & session persistence across refreshes
   useEffect(() => {
     const urlStep = searchParams.get("step");
     const urlOrderCode = searchParams.get("orderCode");
     const urlError = searchParams.get("error");
 
     if (urlStep === "complete" && urlOrderCode) {
-      // Normal redirect worked — show Completion and clean up
+      // Normal redirect worked — show Completion, save to session, and clean up URL
       setOrderCode(urlOrderCode);
       setStep("complete");
+      sessionStorage.setItem("printeg_completed_order", urlOrderCode);
       const savedLinkId = sessionStorage.getItem("printeg_payment_link_id") || "";
       sessionStorage.removeItem("printeg_pending_order");
       sessionStorage.removeItem("printeg_payment_link_id");
       window.history.replaceState({}, "", window.location.pathname);
 
-      // Client-side fallback: directly update Firestore in case server-side Admin SDK failed
-      // (e.g. missing FIREBASE_ADMIN_CLIENT_EMAIL / FIREBASE_ADMIN_PRIVATE_KEY)
-      (async () => {
-        try {
-          const orderRef = doc(db, "orders", urlOrderCode);
-          const { getDoc } = await import("firebase/firestore");
-          const snap = await getDoc(orderRef);
-          if (snap.exists() && snap.data()?.payment_status !== "PAID") {
-            const { updateDoc } = await import("firebase/firestore");
-            await updateDoc(orderRef, {
-              payment_status: "PAID",
-              paid_at: new Date().toISOString(),
-              paid_via: "client_fallback",
-            });
-            console.log(`Client fallback: Order ${urlOrderCode} marked as PAID`);
-          }
-        } catch (err) {
-          console.warn("Client fallback Firestore update failed:", err);
-        }
-      })();
-
-      // Also verify payment & update DB via server-side Admin SDK (belt-and-suspenders)
+      // Verify payment & update DB via server-side Admin SDK
       fetch("/api/zoho/verify-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -111,6 +91,14 @@ export default function PrintApp() {
       return;
     }
 
+    // Check if user previously completed an order (persists across page reloads)
+    const savedCompletedOrder = sessionStorage.getItem("printeg_completed_order");
+    if (savedCompletedOrder) {
+      setOrderCode(savedCompletedOrder);
+      setStep("complete");
+      return;
+    }
+
     // --- Mobile GPay fallback ---
     // On mobile, GPay opens as a native app. When it returns to the browser,
     // Zoho's success page redirect often doesn't fire. We save the orderCode
@@ -130,6 +118,7 @@ export default function PrintApp() {
         if (snapshot.exists() && snapshot.data()?.payment_status === "PAID") {
           setOrderCode(pendingCode);
           setStep("complete");
+          sessionStorage.setItem("printeg_completed_order", pendingCode);
           sessionStorage.removeItem("printeg_pending_order");
           sessionStorage.removeItem("printeg_payment_link_id");
           unsubscribe();
@@ -609,6 +598,15 @@ export default function PrintApp() {
                   orderCode={orderCode}
                   mobileNumber={mobileNumber}
                   totalCost={totalCost}
+                  onStartNewOrder={() => {
+                    sessionStorage.removeItem("printeg_completed_order");
+                    sessionStorage.removeItem("printeg_pending_order");
+                    sessionStorage.removeItem("printeg_payment_link_id");
+                    setOrderCode("");
+                    setFiles([]);
+                    setTotalPages(0);
+                    setStep("upload");
+                  }}
                 />
               )}
             </div>
