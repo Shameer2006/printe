@@ -9,6 +9,7 @@ import { AIDocumentGenerator } from "@/components/AIDocumentGenerator";
 import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
 import { mergePDFs, generateOrderCode } from "@/lib/utils";
+import { calculateOrderPricing } from "@/lib/pricing";
 import { db, storage } from "@/lib/firebase";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -234,7 +235,9 @@ export default function PrintApp() {
     ? (pricing?.color ?? 10)
     : (printSide === "double" ? (pricing?.doubleSided ?? 2) : (pricing?.bw ?? 1.5));
   const aiCharge = isAIDoc ? 3 : 0;
-  const totalCost = (sheetsToPrint * pricePerSheet * copies) + aiCharge;
+  const basePrintSubtotal = (sheetsToPrint * pricePerSheet * copies) + aiCharge;
+  const printPricing = calculateOrderPricing(basePrintSubtotal, { applyPlatformFee: true });
+  const totalCost = printPricing.totalAmount;
 
   const handleFilesChange = (newFiles: File[], pages: number) => {
     setFiles(newFiles);
@@ -359,7 +362,11 @@ export default function PrintApp() {
         isColor,
         printSide,
         printLayout,
-        amount: totalCost,
+        subtotal: printPricing.subtotal,
+        platformFee: printPricing.platformFee,
+        platformFeeRate: printPricing.platformFeeRate,
+        vendorAmount: printPricing.vendorAmount,
+        amount: printPricing.totalAmount,
         fileUrl,
       }));
 
@@ -394,7 +401,8 @@ export default function PrintApp() {
       const code = generateOrderCode();
       setOrderCode(code);
       const a4Price = pricing?.a4Sheet ?? 1;
-      const a4TotalCost = a4Sheets * a4Price;
+      const a4Subtotal = a4Sheets * a4Price;
+      const a4Pricing = calculateOrderPricing(a4Subtotal, { applyPlatformFee: false });
 
       const writePromise = setDoc(doc(db, "orders", code), buildOrderData(code, {
         totalPages: a4Sheets,
@@ -402,7 +410,11 @@ export default function PrintApp() {
         isColor: false,
         printSide: "single",
         printLayout: "1-in-1",
-        amount: a4TotalCost,
+        subtotal: a4Pricing.subtotal,
+        platformFee: a4Pricing.platformFee,
+        platformFeeRate: a4Pricing.platformFeeRate,
+        vendorAmount: a4Pricing.vendorAmount,
+        amount: a4Pricing.totalAmount,
         fileUrl: "EMPTY_A4_SHEET",
         isA4SheetsOnly: true,
       }));
@@ -410,8 +422,8 @@ export default function PrintApp() {
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 30000));
       await Promise.race([writePromise, timeoutPromise]);
 
-      // await openRazorpayCheckout(code, a4TotalCost, mobileNumber); // Razorpay (commented out)
-      await openZohoPayment(code, a4TotalCost, mobileNumber);
+      // await openRazorpayCheckout(code, a4Pricing.totalAmount, mobileNumber); // Razorpay (commented out)
+      await openZohoPayment(code, a4Pricing.totalAmount, mobileNumber);
 
       // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
       // setStep("complete");
@@ -577,6 +589,8 @@ export default function PrintApp() {
                 <PrintConfig
                   file={files.length > 0 ? files[0] : null}
                   totalPages={totalPages}
+                  subtotal={printPricing.subtotal}
+                  platformFee={printPricing.platformFee}
                   totalCost={totalCost}
                   sheetsToPrint={sheetsToPrint}
                   isAIDoc={isAIDoc}

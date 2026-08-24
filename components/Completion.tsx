@@ -17,6 +17,8 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
     const [copied, setCopied] = useState(false);
     const [mobileNumber, setMobileNumber] = useState(initialMobile);
     const [totalCost, setTotalCost] = useState(initialCost);
+    const [subtotal, setSubtotal] = useState<number | undefined>(undefined);
+    const [platformFee, setPlatformFee] = useState<number | undefined>(undefined);
     const [isLoadingData, setIsLoadingData] = useState(!initialMobile);
     const [isGenerating, setIsGenerating] = useState(false);
     const hasDownloaded = useRef(false);
@@ -31,6 +33,8 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
                     const data = orderDoc.data();
                     setMobileNumber(data.mobileNumber || "");
                     setTotalCost(data.amount || 0);
+                    if (typeof data.subtotal === "number") setSubtotal(data.subtotal);
+                    if (typeof data.platformFee === "number") setPlatformFee(data.platformFee);
                 }
             } catch (error) {
                 console.error("Error fetching order data:", error);
@@ -193,6 +197,19 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
                         {isLoadingData ? <Loader2 className="h-4 w-4 animate-spin" /> : mobileNumber}
                     </span>
                 </div>
+                {platformFee !== undefined && platformFee > 0 && (
+                    <>
+                        <div className="h-px bg-gray-100" />
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Subtotal</span>
+                            <span className="font-medium text-gray-700">₹{(subtotal ?? (totalCost - platformFee)).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Platform Fee (8%)</span>
+                            <span className="font-medium text-gray-700">₹{platformFee.toFixed(2)}</span>
+                        </div>
+                    </>
+                )}
                 <div className="h-px bg-gray-100" />
                 <div className="flex justify-between text-base">
                     <span className="text-gray-500">Amount Paid</span>

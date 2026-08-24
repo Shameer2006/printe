@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
         // Zoho Payments API v1 - exact structure from official docs
         const payload: any = {
-            amount: parseFloat(amount),
+            amount: parseFloat(Number(amount).toFixed(2)),
             currency: "INR",
             phone: mobileNumber,
             phone_country_code: "IN",

@@ -18,6 +18,8 @@ const PdfPreview = dynamic(() => import("./PdfPreview"), {
 interface PrintConfigProps {
     file: File | null;
     totalPages: number;
+    subtotal?: number;
+    platformFee?: number;
     totalCost: number;
     sheetsToPrint: number;
     isAIDoc: boolean;
@@ -38,6 +40,8 @@ interface PrintConfigProps {
 export function PrintConfig({
     file,
     totalPages,
+    subtotal,
+    platformFee = 0,
     totalCost,
     sheetsToPrint,
     isAIDoc,
@@ -228,7 +232,7 @@ export function PrintConfig({
                 </div>
 
                 {/* Cost Summary - Cards */}
-                <div className="bg-gray-50 rounded-2xl p-6 space-y-4 border border-gray-100">
+                <div className="bg-gray-50 rounded-2xl p-6 space-y-3 border border-gray-100">
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-gray-500 font-medium">Physical sheets</span>
                         <span className="font-bold text-gray-900">{sheetsToPrint} sheet{sheetsToPrint !== 1 ? 's' : ''} × {copies} cop{copies > 1 ? 'ies' : 'y'}</span>
@@ -243,7 +247,13 @@ export function PrintConfig({
                             <span>₹3.00</span>
                         </div>
                     )}
-                    <div className="h-px bg-gray-200" />
+                    {platformFee > 0 && (
+                        <div className="flex justify-between items-center text-sm text-gray-600 font-medium">
+                            <span>Platform Fee (8%)</span>
+                            <span className="font-semibold text-gray-900">₹{platformFee.toFixed(2)}</span>
+                        </div>
+                    )}
+                    <div className="h-px bg-gray-200 my-1" />
                     <div className="flex justify-between items-center text-xl font-bold">
                         <span>Total Pay</span>
                         <span>₹{totalCost.toFixed(2)}</span>
