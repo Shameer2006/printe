@@ -8,11 +8,15 @@ import { Completion } from "@/components/Completion";
 import { AIDocumentGenerator } from "@/components/AIDocumentGenerator";
 import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
+<<<<<<< HEAD
 import { mergePDFs, generateOrderCode } from "@/lib/utils";
 import { calculateOrderPricing } from "@/lib/pricing";
 import { saveOrderToHistory } from "@/lib/order-history";
+=======
+import { mergePDFs } from "@/lib/utils";
+>>>>>>> add119cd7c1888434f7bd1d2517871550234c605
 import { db, storage } from "@/lib/firebase";
-import { doc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "sonner";
 import { Loader2, ScanLine, Clock } from "lucide-react";
@@ -31,6 +35,49 @@ import { useVendor } from "@/lib/vendor-context";
 
 type Step = "upload" | "config" | "payment" | "complete";
 type Mode = "upload" | "ai-doc" | "a4-sheet";
+
+/** Names the uploaded PDF. Deliberately not the order code — that is assigned later, by the server. */
+function newUploadId(): string {
+  return `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * Ask the server to confirm this order's payment with Zoho, retrying for ~30s.
+ *
+ * This does not decide anything itself — it only prompts a server-to-server check, so
+ * it cannot mark an unpaid order as paid. It exists because the two channels that
+ * normally flip an order to PAID both have blind spots: the browser redirect is lost
+ * whenever GPay/UPI takes over on mobile, and the webhook is silent if its signing key
+ * is wrong. Asking Zoho covers both.
+ */
+// UPI settlement usually lands in seconds but is not bounded by anything we control, so
+// keep checking for a couple of minutes rather than the ~30s that used to give up while
+// the payment was still in flight.
+const RECONCILE_DELAYS_MS = [1500, 2500, 4000, 6000, 10000, 15000, 25000, 40000];
+
+async function reconcileUntilPaid(orderCode: string): Promise<boolean> {
+  for (let attempt = 0; attempt <= RECONCILE_DELAYS_MS.length; attempt++) {
+    try {
+      const res = await fetch("/api/zoho/reconcile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderCode }),
+      });
+      const data = await res.json();
+      if (data?.paid) return true;
+      if (data?.status === "order_not_found") return false;
+      // A cancelled or expired link will never become paid — stop asking.
+      if (data?.status === "not_paid" && data?.terminal) return false;
+    } catch {
+      // Network blip — fall through to the retry.
+    }
+
+    const delay = RECONCILE_DELAYS_MS[attempt];
+    if (delay === undefined) break;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+  return false;
+}
 
 export default function PrintApp() {
   const { vendor, storeName, isPoweredBy } = useVendor();
@@ -60,13 +107,12 @@ export default function PrintApp() {
     const urlError = searchParams.get("error");
 
     if (urlStep === "complete" && urlOrderCode) {
-      // Normal redirect worked — show Completion and clean up
+      // Normal redirect worked — show Completion.
       setOrderCode(urlOrderCode);
       setStep("complete");
-      const savedLinkId = sessionStorage.getItem("printeg_payment_link_id") || "";
-      sessionStorage.removeItem("printeg_pending_order");
-      sessionStorage.removeItem("printeg_payment_link_id");
+      sessionStorage.setItem("printeg_pending_order", urlOrderCode);
       window.history.replaceState({}, "", window.location.pathname);
+<<<<<<< HEAD
 
       // Client-side fallback: directly update Firestore in case server-side Admin SDK failed
       // (e.g. missing FIREBASE_ADMIN_CLIENT_EMAIL / FIREBASE_ADMIN_PRIVATE_KEY)
@@ -103,10 +149,22 @@ export default function PrintApp() {
         })
         .catch((err) => console.error("Verify payment call failed:", err));
 
+=======
+      // The callback may not have been able to confirm payment with Zoho (verify=1),
+      // and even when it did, a retry is harmless — reconcile is idempotent. The pending
+      // code is only dropped once payment is actually confirmed, so reloading the page
+      // resumes the check instead of abandoning an unresolved order.
+      void reconcileUntilPaid(urlOrderCode).then((paid) => {
+        if (paid) sessionStorage.removeItem("printeg_pending_order");
+      });
+>>>>>>> add119cd7c1888434f7bd1d2517871550234c605
       return;
     }
 
     if (urlStep === "payment" && urlError) {
+      // Reached only when Zoho says the link is cancelled or expired, so there is
+      // nothing left to reconcile.
+      sessionStorage.removeItem("printeg_pending_order");
       toast.error(urlError);
       window.history.replaceState({}, "", window.location.pathname);
       return;
@@ -115,18 +173,16 @@ export default function PrintApp() {
     // --- Mobile GPay fallback ---
     // On mobile, GPay opens as a native app. When it returns to the browser,
     // Zoho's success page redirect often doesn't fire. We save the orderCode
-    // to sessionStorage before leaving, then listen to Firestore here.
+    // to sessionStorage before leaving, then listen to Firestore here for the
+    // callback route to mark the order PAID.
     const pendingCode = sessionStorage.getItem("printeg_pending_order");
     if (pendingCode) {
-      // Actively verify with server first
-      const savedLinkId = sessionStorage.getItem("printeg_payment_link_id") || "";
-      fetch("/api/zoho/verify-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderCode: pendingCode, paymentLinkId: savedLinkId }),
-      }).catch(() => {});
+      // The redirect never landed, so nothing has confirmed this payment yet — ask the
+      // server to check with Zoho directly rather than waiting on the webhook alone.
+      void reconcileUntilPaid(pendingCode);
 
-      // Then listen for the PAID status update in Firestore
+      // Listen for the PAID status update in Firestore. This also catches a resolution
+      // that arrived from the webhook or the server-side sweep rather than from us.
       const unsubscribe = onSnapshot(doc(db, "orders", pendingCode), (snapshot) => {
         if (snapshot.exists() && snapshot.data()?.payment_status === "PAID") {
           setOrderCode(pendingCode);
@@ -195,16 +251,14 @@ export default function PrintApp() {
   //   });
   // };
 
-  // Zoho Payments helper — creates a payment link and redirects user
-  const openZohoPayment = async (code: string, amount: number, mobile: string) => {
+  // Zoho Payments helper — creates a payment link and redirects user.
+  // The amount and phone number come from the stored order on the server, so only the
+  // order code is sent here.
+  const openZohoPayment = async (code: string) => {
     const response = await fetch("/api/zoho/create-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderCode: code,
-        amount,
-        mobileNumber: mobile,
-      }),
+      body: JSON.stringify({ orderCode: code }),
     });
 
     const data = await response.json();
@@ -213,11 +267,9 @@ export default function PrintApp() {
       throw new Error(data.error || "Failed to create payment link");
     }
 
-    // Save orderCode and paymentLinkId for verification after return
+    // Save orderCode so the mobile GPay fallback listener can find it if
+    // Zoho's redirect back to us doesn't fire.
     sessionStorage.setItem("printeg_pending_order", code);
-    if (data.paymentLinkId) {
-      sessionStorage.setItem("printeg_payment_link_id", data.paymentLinkId);
-    }
 
     // Redirect user to Zoho's hosted payment page
     window.location.href = data.paymentUrl;
@@ -267,13 +319,14 @@ export default function PrintApp() {
     setIsAIDoc(false);
     setStep("config");
 
-    const code = generateOrderCode();
-    setOrderCode(code);
+    // The order code is assigned by the server when the order is created, so the upload
+    // is named independently of it.
+    const uploadId = newUploadId();
 
     uploadPromiseRef.current = (async () => {
       try {
         const mergedPdf = await mergePDFs(files);
-        const storageRef = ref(storage, `orders/${code}_${Date.now()}.pdf`);
+        const storageRef = ref(storage, `orders/${uploadId}.pdf`);
         await uploadBytes(storageRef, mergedPdf);
         const url = await getDownloadURL(storageRef);
         return url;
@@ -289,15 +342,14 @@ export default function PrintApp() {
     setStep("config");
     setTotalPages(pages);
 
-    const code = generateOrderCode();
-    setOrderCode(code);
+    const uploadId = newUploadId();
 
     const file = new File([blob], "AI_Document.pdf", { type: "application/pdf" });
     setFiles([file]);
 
     uploadPromiseRef.current = (async () => {
       try {
-        const storageRef = ref(storage, `orders/${code}_${Date.now()}.pdf`);
+        const storageRef = ref(storage, `orders/${uploadId}.pdf`);
         await uploadBytes(storageRef, blob);
         const url = await getDownloadURL(storageRef);
         return url;
@@ -310,19 +362,30 @@ export default function PrintApp() {
     })();
   };
 
-  const buildOrderData = (code: string, extra: Record<string, any>) => {
-    const base: Record<string, any> = {
-      orderCode: code,
-      mobileNumber,
-      createdAt: new Date().toISOString(),
-      payment_status: "PENDING",
-      status: "pending",
-      ...extra,
-    };
-    if (vendor?.slug) {
-      base.vendorSlug = vendor.slug;
+  /**
+   * Create the order on the server and return the code it allocated.
+   *
+   * The code is not generated here any more. A four-digit code written straight from the
+   * browser collided often enough to overwrite live orders, which is how a paid order
+   * ended up back at PENDING with its payment link id gone.
+   */
+  const createOrder = async (extra: Record<string, unknown>): Promise<string> => {
+    const payload: Record<string, unknown> = { mobileNumber, ...extra };
+    if (vendor?.slug) payload.vendorSlug = vendor.slug;
+
+    const response = await fetch("/api/orders/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.orderCode) {
+      throw new Error(data.error || "Could not create your order. Please try again.");
     }
-    return base;
+
+    setOrderCode(data.orderCode);
+    return data.orderCode;
   };
 
   const handlePayment = async () => {
@@ -349,15 +412,7 @@ export default function PrintApp() {
         return;
       }
 
-      if (!orderCode) {
-        throw new Error("Invalid order session. Please refresh and try again.");
-      }
-
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Firestore write timeout after 30 seconds.')), 30000);
-      });
-
-      const writePromise = setDoc(doc(db, "orders", orderCode), buildOrderData(orderCode, {
+      const code = await createOrder({
         totalPages,
         copies,
         isColor,
@@ -369,8 +424,9 @@ export default function PrintApp() {
         vendorAmount: printPricing.vendorAmount,
         amount: printPricing.totalAmount,
         fileUrl,
-      }));
+      });
 
+<<<<<<< HEAD
       await Promise.race([writePromise, timeoutPromise]);
 
       // Save to local storage order history
@@ -393,6 +449,10 @@ export default function PrintApp() {
 
       // await openRazorpayCheckout(orderCode, totalCost, mobileNumber); // Razorpay (commented out)
       await openZohoPayment(orderCode, totalCost, mobileNumber);
+=======
+      // await openRazorpayCheckout(code, totalCost, mobileNumber); // Razorpay (commented out)
+      await openZohoPayment(code);
+>>>>>>> add119cd7c1888434f7bd1d2517871550234c605
 
       // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
       // setStep("complete");
@@ -417,13 +477,11 @@ export default function PrintApp() {
     setIsProcessing(true);
 
     try {
-      const code = generateOrderCode();
-      setOrderCode(code);
       const a4Price = pricing?.a4Sheet ?? 1;
       const a4Subtotal = a4Sheets * a4Price;
       const a4Pricing = calculateOrderPricing(a4Subtotal, { applyPlatformFee: true });
 
-      const writePromise = setDoc(doc(db, "orders", code), buildOrderData(code, {
+      const code = await createOrder({
         totalPages: a4Sheets,
         copies: 1,
         isColor: false,
@@ -436,11 +494,9 @@ export default function PrintApp() {
         amount: a4Pricing.totalAmount,
         fileUrl: "EMPTY_A4_SHEET",
         isA4SheetsOnly: true,
-      }));
+      });
 
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 30000));
-      await Promise.race([writePromise, timeoutPromise]);
-
+<<<<<<< HEAD
       // Save to local storage order history
       saveOrderToHistory({
         orderCode: code,
@@ -461,6 +517,10 @@ export default function PrintApp() {
 
       // await openRazorpayCheckout(code, a4Pricing.totalAmount, mobileNumber); // Razorpay (commented out)
       await openZohoPayment(code, a4Pricing.totalAmount, mobileNumber);
+=======
+      // await openRazorpayCheckout(code, a4TotalCost, mobileNumber); // Razorpay (commented out)
+      await openZohoPayment(code);
+>>>>>>> add119cd7c1888434f7bd1d2517871550234c605
 
       // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
       // setStep("complete");

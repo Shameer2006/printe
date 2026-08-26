@@ -48,9 +48,9 @@ export async function mergePDFs(files: File[]): Promise<Blob> {
   return new Blob([mergedPdfBytes as BlobPart], { type: 'application/pdf' });
 }
 
-export function generateOrderCode(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
-}
+// Order codes are allocated by the server (`createOrder` in lib/orders.ts), which picks
+// one inside a transaction so it cannot land on a live order. Generating one client-side
+// overwrote existing orders on collision, so that helper is deliberately gone.
 
 export async function getPDFPageCount(blob: Blob): Promise<number> {
   const arrayBuffer = await blob.arrayBuffer();

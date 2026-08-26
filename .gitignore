@@ -33,6 +33,13 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# service-account keys. These grant full admin access to Firestore and Storage and
+# bypass every security rule, so they must never reach the repo even by accident.
+*serviceaccount*.json
+*service-account*.json
+*adminsdk*.json
+print-eg-be986-*.json
+
 # vercel
 .vercel
 
