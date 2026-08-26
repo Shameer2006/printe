@@ -540,7 +540,8 @@ export default function PrintApp() {
                       >
                         📄 Upload PDF
                       </button>
-                      <button
+                      {/* AI Generator (commented out for now) */}
+                      {/* <button
                         onClick={() => setMode("ai-doc")}
                         className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${mode === "ai-doc"
                           ? "bg-white text-black shadow-sm"
@@ -548,7 +549,7 @@ export default function PrintApp() {
                           }`}
                       >
                         ✨ AI Generator
-                      </button>
+                      </button> */}
                       <button
                         onClick={() => setMode("a4-sheet")}
                         className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${mode === "a4-sheet"
@@ -565,9 +566,10 @@ export default function PrintApp() {
                   {mode === "upload" && (
                     <FileUpload onFilesChange={handleFilesChange} onContinue={handleContinue} totalPages={totalPages} />
                   )}
-                  {mode === "ai-doc" && (
+                  {/* AI Generator (commented out for now) */}
+                  {/* {mode === "ai-doc" && (
                     <AIDocumentGenerator onProceed={handleAIProceed} />
-                  )}
+                  )} */}
                   {mode === "a4-sheet" && (
                     <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <div className="space-y-4">
