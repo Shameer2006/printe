@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getZohoAccessToken } from "@/lib/zoho-auth";
-import { getAdminDb } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
     try {
@@ -17,30 +16,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Payment gateway not configured" }, { status: 500 });
         }
 
-        // Verify order exists in Firestore and get verified server-side amount
-        const adminDb = getAdminDb();
-        const orderRef = adminDb.collection("orders").doc(orderCode);
-        const orderSnap = await orderRef.get();
-
-        if (!orderSnap.exists) {
-            return NextResponse.json({ error: "Order not found" }, { status: 404 });
-        }
-
-        const orderData = orderSnap.data();
-
-        if (orderData?.payment_status === "PAID") {
-            return NextResponse.json({ error: "Order is already paid" }, { status: 400 });
-        }
-
-        // Use database amount to prevent client-side price tampering
-        const verifiedAmount = typeof orderData?.amount === "number" ? orderData.amount : parseFloat(amount);
-
         const accessToken = await getZohoAccessToken();
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
         // Zoho Payments API v1 - exact structure from official docs
         const payload: any = {
-            amount: parseFloat(Number(verifiedAmount).toFixed(2)),
+            amount: parseFloat(Number(amount).toFixed(2)),
             currency: "INR",
             phone: mobileNumber,
             phone_country_code: "IN",
@@ -70,11 +51,14 @@ export async function POST(req: NextRequest) {
         if (data.code === 0 && data.payment_links) {
             // Save the payment link ID back into the Firestore order for reliable verification
             try {
-                await orderRef.update({
+                const { getAdminDb } = await import("@/lib/firebase-admin");
+                const adminDb = getAdminDb();
+                await adminDb.collection("orders").doc(orderCode).update({
                     zoho_payment_link_id: data.payment_links.payment_link_id,
                 });
             } catch (err) {
                 console.warn("Failed to save payment_link_id to Firestore order:", err);
+                // Non-fatal — the client also saves it to sessionStorage
             }
 
             return NextResponse.json({

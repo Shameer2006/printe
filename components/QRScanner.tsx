@@ -48,29 +48,29 @@ export function QRScanner({ onClose }: QRScannerProps) {
             return;
           }
 
-          // Validate full URLs: only allow internal domains (printeg.in, localhost)
-          try {
-            const url = new URL(decodedText);
-            const isAllowedHost = 
-              url.hostname === "printeg.in" || 
-              url.hostname.endsWith(".printeg.in") || 
-              url.hostname === "localhost" ||
-              url.hostname === "127.0.0.1";
-
-            if (isAllowedHost) {
+          // If the URL contains "printeg", redirect to its path
+          if (decodedText.includes("printeg")) {
+            try {
+              const url = new URL(decodedText);
               safeStop();
-              window.location.href = url.pathname + url.search;
+              window.location.href = url.pathname;
               return;
-            } else {
-              setError("External links are not supported for safety.");
-              setTimeout(() => setError(""), 3000);
-              return;
+            } catch {
+              // not a valid URL, continue
             }
-          } catch {
-            // Not a URL
           }
 
-          setError("Could not find a valid PrintEG store link in this QR code.");
+          // If it's a plain URL, just navigate to it
+          try {
+            const url = new URL(decodedText);
+            safeStop();
+            window.location.href = url.href;
+            return;
+          } catch {
+            // not a URL
+          }
+
+          setError("Could not find a store link in this QR code.");
           setTimeout(() => setError(""), 3000);
         },
         () => {

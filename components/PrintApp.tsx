@@ -10,11 +10,12 @@ import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
 import { mergePDFs, generateOrderCode } from "@/lib/utils";
 import { calculateOrderPricing } from "@/lib/pricing";
+import { saveOrderToHistory } from "@/lib/order-history";
 import { db, storage } from "@/lib/firebase";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "sonner";
-import { Loader2, ScanLine } from "lucide-react";
+import { Loader2, ScanLine, Clock } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import Script from "next/script";
@@ -52,23 +53,43 @@ export default function PrintApp() {
   const [showQRScanner, setShowQRScanner] = useState(false);
 
   // Read URL params set by the payment gateway callback redirect
-  // Also handles mobile GPay fallback & session persistence across refreshes
+  // Also handles mobile GPay fallback via Firestore real-time listener
   useEffect(() => {
     const urlStep = searchParams.get("step");
     const urlOrderCode = searchParams.get("orderCode");
     const urlError = searchParams.get("error");
 
     if (urlStep === "complete" && urlOrderCode) {
-      // Normal redirect worked — show Completion, save to session, and clean up URL
+      // Normal redirect worked — show Completion and clean up
       setOrderCode(urlOrderCode);
       setStep("complete");
-      sessionStorage.setItem("printeg_completed_order", urlOrderCode);
       const savedLinkId = sessionStorage.getItem("printeg_payment_link_id") || "";
       sessionStorage.removeItem("printeg_pending_order");
       sessionStorage.removeItem("printeg_payment_link_id");
       window.history.replaceState({}, "", window.location.pathname);
 
-      // Verify payment & update DB via server-side Admin SDK
+      // Client-side fallback: directly update Firestore in case server-side Admin SDK failed
+      // (e.g. missing FIREBASE_ADMIN_CLIENT_EMAIL / FIREBASE_ADMIN_PRIVATE_KEY)
+      (async () => {
+        try {
+          const orderRef = doc(db, "orders", urlOrderCode);
+          const { getDoc } = await import("firebase/firestore");
+          const snap = await getDoc(orderRef);
+          if (snap.exists() && snap.data()?.payment_status !== "PAID") {
+            const { updateDoc } = await import("firebase/firestore");
+            await updateDoc(orderRef, {
+              payment_status: "PAID",
+              paid_at: new Date().toISOString(),
+              paid_via: "client_fallback",
+            });
+            console.log(`Client fallback: Order ${urlOrderCode} marked as PAID`);
+          }
+        } catch (err) {
+          console.warn("Client fallback Firestore update failed:", err);
+        }
+      })();
+
+      // Also verify payment & update DB via server-side Admin SDK (belt-and-suspenders)
       fetch("/api/zoho/verify-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -91,14 +112,6 @@ export default function PrintApp() {
       return;
     }
 
-    // Check if user previously completed an order (persists across page reloads)
-    const savedCompletedOrder = sessionStorage.getItem("printeg_completed_order");
-    if (savedCompletedOrder) {
-      setOrderCode(savedCompletedOrder);
-      setStep("complete");
-      return;
-    }
-
     // --- Mobile GPay fallback ---
     // On mobile, GPay opens as a native app. When it returns to the browser,
     // Zoho's success page redirect often doesn't fire. We save the orderCode
@@ -118,7 +131,6 @@ export default function PrintApp() {
         if (snapshot.exists() && snapshot.data()?.payment_status === "PAID") {
           setOrderCode(pendingCode);
           setStep("complete");
-          sessionStorage.setItem("printeg_completed_order", pendingCode);
           sessionStorage.removeItem("printeg_pending_order");
           sessionStorage.removeItem("printeg_payment_link_id");
           unsubscribe();
@@ -361,6 +373,24 @@ export default function PrintApp() {
 
       await Promise.race([writePromise, timeoutPromise]);
 
+      // Save to local storage order history
+      saveOrderToHistory({
+        orderCode,
+        createdAt: new Date().toISOString(),
+        amount: printPricing.totalAmount,
+        mobileNumber,
+        totalPages,
+        copies,
+        isColor,
+        printSide,
+        printLayout,
+        storeName,
+        vendorSlug: vendor?.slug,
+        fileUrl,
+        subtotal: printPricing.subtotal,
+        platformFee: printPricing.platformFee,
+      });
+
       // await openRazorpayCheckout(orderCode, totalCost, mobileNumber); // Razorpay (commented out)
       await openZohoPayment(orderCode, totalCost, mobileNumber);
 
@@ -391,7 +421,7 @@ export default function PrintApp() {
       setOrderCode(code);
       const a4Price = pricing?.a4Sheet ?? 1;
       const a4Subtotal = a4Sheets * a4Price;
-      const a4Pricing = calculateOrderPricing(a4Subtotal, { applyPlatformFee: false });
+      const a4Pricing = calculateOrderPricing(a4Subtotal, { applyPlatformFee: true });
 
       const writePromise = setDoc(doc(db, "orders", code), buildOrderData(code, {
         totalPages: a4Sheets,
@@ -410,6 +440,24 @@ export default function PrintApp() {
 
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 30000));
       await Promise.race([writePromise, timeoutPromise]);
+
+      // Save to local storage order history
+      saveOrderToHistory({
+        orderCode: code,
+        createdAt: new Date().toISOString(),
+        amount: a4Pricing.totalAmount,
+        mobileNumber,
+        totalPages: a4Sheets,
+        copies: 1,
+        isColor: false,
+        printSide: "single",
+        printLayout: "1-in-1",
+        isA4SheetsOnly: true,
+        storeName,
+        vendorSlug: vendor?.slug,
+        subtotal: a4Pricing.subtotal,
+        platformFee: a4Pricing.platformFee,
+      });
 
       // await openRazorpayCheckout(code, a4Pricing.totalAmount, mobileNumber); // Razorpay (commented out)
       await openZohoPayment(code, a4Pricing.totalAmount, mobileNumber);
@@ -453,15 +501,26 @@ export default function PrintApp() {
               ) : (
                 <h3 className="font-semibold text-lg">Print. Easy. Go</h3>
               )}
-              {/* QR Scanner button — only on root PrintEG page */}
-              {!isPoweredBy && step === "upload" && (
-                <button
-                  onClick={() => setShowQRScanner(true)}
-                  className="mt-3 inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-2xl text-sm font-semibold hover:bg-gray-800 active:scale-[0.97] transition-all shadow-lg shadow-black/10"
-                >
-                  <ScanLine className="h-4 w-4" />
-                  Scan Store QR
-                </button>
+              {/* Action Buttons: QR Scanner & My Orders */}
+              {step === "upload" && (
+                <div className="flex items-center gap-2 pt-2">
+                  {!isPoweredBy && (
+                    <button
+                      onClick={() => setShowQRScanner(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-xs font-semibold hover:bg-gray-800 active:scale-[0.97] transition-all shadow-md shadow-black/10"
+                    >
+                      <ScanLine className="h-3.5 w-3.5" />
+                      Scan QR
+                    </button>
+                  )}
+                  <Link
+                    href="/orders"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-800 rounded-xl text-xs font-semibold hover:bg-gray-200 active:scale-[0.97] transition-all border border-gray-200"
+                  >
+                    <Clock className="h-3.5 w-3.5 text-gray-600" />
+                    My Orders
+                  </Link>
+                </div>
               )}
             </div>
 
@@ -550,6 +609,24 @@ export default function PrintApp() {
                         </div>
                       </div>
 
+                      {a4Sheets >= 1 && (
+                        <div className="bg-white rounded-xl p-4 space-y-2 border border-gray-200">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-500 font-medium">Sheets ({a4Sheets} × ₹{(pricing?.a4Sheet ?? 1).toFixed(2)})</span>
+                            <span className="font-bold text-gray-900">₹{((a4Sheets || 0) * (pricing?.a4Sheet ?? 1)).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm text-gray-600 font-medium">
+                            <span>Platform Fee (8%)</span>
+                            <span className="font-semibold text-gray-900">₹{calculateOrderPricing((a4Sheets || 0) * (pricing?.a4Sheet ?? 1), { applyPlatformFee: true }).platformFee.toFixed(2)}</span>
+                          </div>
+                          <div className="h-px bg-gray-100 my-1" />
+                          <div className="flex justify-between items-center text-base font-bold">
+                            <span>Total Pay</span>
+                            <span>₹{calculateOrderPricing((a4Sheets || 0) * (pricing?.a4Sheet ?? 1), { applyPlatformFee: true }).totalAmount.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-3">
                         <Button
                           onClick={handleA4Payment}
@@ -562,7 +639,7 @@ export default function PrintApp() {
                               Processing...
                             </span>
                           ) : (
-                            `Pay ₹${a4Sheets * (pricing?.a4Sheet ?? 1)}`
+                            `Pay ₹${calculateOrderPricing((a4Sheets || 0) * (pricing?.a4Sheet ?? 1), { applyPlatformFee: true }).totalAmount.toFixed(2)}`
                           )}
                         </Button>
                         <p className="text-xs text-center text-gray-500 font-medium">
@@ -598,15 +675,6 @@ export default function PrintApp() {
                   orderCode={orderCode}
                   mobileNumber={mobileNumber}
                   totalCost={totalCost}
-                  onStartNewOrder={() => {
-                    sessionStorage.removeItem("printeg_completed_order");
-                    sessionStorage.removeItem("printeg_pending_order");
-                    sessionStorage.removeItem("printeg_payment_link_id");
-                    setOrderCode("");
-                    setFiles([]);
-                    setTotalPages(0);
-                    setStep("upload");
-                  }}
                 />
               )}
             </div>
@@ -669,6 +737,9 @@ export default function PrintApp() {
             Simple • Fast • Secure
           </p>
           <div className="flex flex-wrap justify-center gap-4 text-xs text-gray-400">
+            <Link href="/orders" className="hover:text-black transition-colors font-semibold text-gray-600">
+              My Orders
+            </Link>
             <Link href={`${basePath}/about`} className="hover:text-black transition-colors">
               About
             </Link>

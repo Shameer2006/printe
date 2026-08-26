@@ -1,20 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { CheckCircle2, Copy, Check, Download, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, Copy, Check, Download, Loader2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { saveOrderToHistory } from "@/lib/order-history";
 
 interface CompletionProps {
     orderCode: string;
     mobileNumber: string;
     totalCost: number;
-    onStartNewOrder?: () => void;
 }
 
-export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: initialCost, onStartNewOrder }: CompletionProps) {
+export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: initialCost }: CompletionProps) {
     const [copied, setCopied] = useState(false);
     const [mobileNumber, setMobileNumber] = useState(initialMobile);
     const [totalCost, setTotalCost] = useState(initialCost);
@@ -36,6 +37,23 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
                     setTotalCost(data.amount || 0);
                     if (typeof data.subtotal === "number") setSubtotal(data.subtotal);
                     if (typeof data.platformFee === "number") setPlatformFee(data.platformFee);
+
+                    // Save/update in local storage history
+                    saveOrderToHistory({
+                        orderCode,
+                        createdAt: data.createdAt || new Date().toISOString(),
+                        amount: data.amount || initialCost,
+                        mobileNumber: data.mobileNumber || initialMobile,
+                        totalPages: data.totalPages,
+                        copies: data.copies,
+                        isColor: data.isColor,
+                        printSide: data.printSide,
+                        printLayout: data.printLayout,
+                        isA4SheetsOnly: data.isA4SheetsOnly,
+                        vendorSlug: data.vendorSlug,
+                        subtotal: data.subtotal,
+                        platformFee: data.platformFee,
+                    });
                 }
             } catch (error) {
                 console.error("Error fetching order data:", error);
@@ -230,17 +248,15 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
                     {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                     {isGenerating ? "Generating..." : "Download Receipt"}
                 </button>
+                <Link
+                    href="/orders"
+                    className="w-full h-12 rounded-2xl border-2 border-gray-200 bg-white text-gray-700 font-bold hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2"
+                >
+                    <Clock className="h-4 w-4 text-gray-500" />
+                    View in My Orders
+                </Link>
                 <button
-                    onClick={() => {
-                        sessionStorage.removeItem("printeg_completed_order");
-                        sessionStorage.removeItem("printeg_pending_order");
-                        sessionStorage.removeItem("printeg_payment_link_id");
-                        if (onStartNewOrder) {
-                            onStartNewOrder();
-                        } else {
-                            window.location.href = window.location.pathname;
-                        }
-                    }}
+                    onClick={() => window.location.reload()}
                     className="w-full h-14 rounded-2xl bg-gray-900 text-white font-bold hover:bg-black transition-colors"
                 >
                     Start New Order
