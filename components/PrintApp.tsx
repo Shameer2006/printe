@@ -8,13 +8,9 @@ import { Completion } from "@/components/Completion";
 import { AIDocumentGenerator } from "@/components/AIDocumentGenerator";
 import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
-<<<<<<< HEAD
-import { mergePDFs, generateOrderCode } from "@/lib/utils";
+import { mergePDFs } from "@/lib/utils";
 import { calculateOrderPricing } from "@/lib/pricing";
 import { saveOrderToHistory } from "@/lib/order-history";
-=======
-import { mergePDFs } from "@/lib/utils";
->>>>>>> add119cd7c1888434f7bd1d2517871550234c605
 import { db, storage } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -112,44 +108,6 @@ export default function PrintApp() {
       setStep("complete");
       sessionStorage.setItem("printeg_pending_order", urlOrderCode);
       window.history.replaceState({}, "", window.location.pathname);
-<<<<<<< HEAD
-
-      // Client-side fallback: directly update Firestore in case server-side Admin SDK failed
-      // (e.g. missing FIREBASE_ADMIN_CLIENT_EMAIL / FIREBASE_ADMIN_PRIVATE_KEY)
-      (async () => {
-        try {
-          const orderRef = doc(db, "orders", urlOrderCode);
-          const { getDoc } = await import("firebase/firestore");
-          const snap = await getDoc(orderRef);
-          if (snap.exists() && snap.data()?.payment_status !== "PAID") {
-            const { updateDoc } = await import("firebase/firestore");
-            await updateDoc(orderRef, {
-              payment_status: "PAID",
-              paid_at: new Date().toISOString(),
-              paid_via: "client_fallback",
-            });
-            console.log(`Client fallback: Order ${urlOrderCode} marked as PAID`);
-          }
-        } catch (err) {
-          console.warn("Client fallback Firestore update failed:", err);
-        }
-      })();
-
-      // Also verify payment & update DB via server-side Admin SDK (belt-and-suspenders)
-      fetch("/api/zoho/verify-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderCode: urlOrderCode, paymentLinkId: savedLinkId }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (!data.verified) {
-            console.warn("Server verify-payment returned not verified:", data);
-          }
-        })
-        .catch((err) => console.error("Verify payment call failed:", err));
-
-=======
       // The callback may not have been able to confirm payment with Zoho (verify=1),
       // and even when it did, a retry is harmless — reconcile is idempotent. The pending
       // code is only dropped once payment is actually confirmed, so reloading the page
@@ -157,7 +115,6 @@ export default function PrintApp() {
       void reconcileUntilPaid(urlOrderCode).then((paid) => {
         if (paid) sessionStorage.removeItem("printeg_pending_order");
       });
->>>>>>> add119cd7c1888434f7bd1d2517871550234c605
       return;
     }
 
@@ -426,12 +383,9 @@ export default function PrintApp() {
         fileUrl,
       });
 
-<<<<<<< HEAD
-      await Promise.race([writePromise, timeoutPromise]);
-
       // Save to local storage order history
       saveOrderToHistory({
-        orderCode,
+        orderCode: code,
         createdAt: new Date().toISOString(),
         amount: printPricing.totalAmount,
         mobileNumber,
@@ -447,12 +401,8 @@ export default function PrintApp() {
         platformFee: printPricing.platformFee,
       });
 
-      // await openRazorpayCheckout(orderCode, totalCost, mobileNumber); // Razorpay (commented out)
-      await openZohoPayment(orderCode, totalCost, mobileNumber);
-=======
       // await openRazorpayCheckout(code, totalCost, mobileNumber); // Razorpay (commented out)
       await openZohoPayment(code);
->>>>>>> add119cd7c1888434f7bd1d2517871550234c605
 
       // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
       // setStep("complete");
@@ -496,7 +446,6 @@ export default function PrintApp() {
         isA4SheetsOnly: true,
       });
 
-<<<<<<< HEAD
       // Save to local storage order history
       saveOrderToHistory({
         orderCode: code,
@@ -516,11 +465,7 @@ export default function PrintApp() {
       });
 
       // await openRazorpayCheckout(code, a4Pricing.totalAmount, mobileNumber); // Razorpay (commented out)
-      await openZohoPayment(code, a4Pricing.totalAmount, mobileNumber);
-=======
-      // await openRazorpayCheckout(code, a4TotalCost, mobileNumber); // Razorpay (commented out)
       await openZohoPayment(code);
->>>>>>> add119cd7c1888434f7bd1d2517871550234c605
 
       // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
       // setStep("complete");

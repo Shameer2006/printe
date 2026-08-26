@@ -44,11 +44,7 @@ export async function POST(req: NextRequest) {
 
         // Zoho Payments API v1 - exact structure from official docs
         const payload: any = {
-<<<<<<< HEAD
-            amount: parseFloat(Number(amount).toFixed(2)),
-=======
             amount,
->>>>>>> add119cd7c1888434f7bd1d2517871550234c605
             currency: "INR",
             phone: mobileNumber,
             phone_country_code: "IN",
@@ -76,18 +72,6 @@ export async function POST(req: NextRequest) {
         const data = await response.json();
 
         if (data.code === 0 && data.payment_links) {
-<<<<<<< HEAD
-            // Save the payment link ID back into the Firestore order for reliable verification
-            try {
-                const { getAdminDb } = await import("@/lib/firebase-admin");
-                const adminDb = getAdminDb();
-                await adminDb.collection("orders").doc(orderCode).update({
-                    zoho_payment_link_id: data.payment_links.payment_link_id,
-                });
-            } catch (err) {
-                console.warn("Failed to save payment_link_id to Firestore order:", err);
-                // Non-fatal — the client also saves it to sessionStorage
-=======
             const paymentLinkId = data.payment_links.payment_link_id;
 
             // Store the payment link id on the order BEFORE handing the customer to Zoho.
@@ -102,7 +86,6 @@ export async function POST(req: NextRequest) {
                     { error: "Could not prepare the order for payment. Please try again." },
                     { status: 500 }
                 );
->>>>>>> add119cd7c1888434f7bd1d2517871550234c605
             }
 
             return NextResponse.json({
