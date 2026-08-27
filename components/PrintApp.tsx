@@ -656,6 +656,7 @@ export default function PrintApp() {
                   subtotal={printPricing.subtotal}
                   platformFee={printPricing.platformFee}
                   totalCost={totalCost}
+                  pricePerSheet={pricePerSheet}
                   sheetsToPrint={sheetsToPrint}
                   isAIDoc={isAIDoc}
                   copies={copies}

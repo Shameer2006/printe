@@ -21,6 +21,7 @@ interface PrintConfigProps {
     subtotal?: number;
     platformFee?: number;
     totalCost: number;
+    pricePerSheet?: number;
     sheetsToPrint: number;
     isAIDoc: boolean;
     copies: number;
@@ -43,6 +44,7 @@ export function PrintConfig({
     subtotal,
     platformFee = 0,
     totalCost,
+    pricePerSheet,
     sheetsToPrint,
     isAIDoc,
     copies,
@@ -239,7 +241,7 @@ export function PrintConfig({
                     </div>
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-gray-500 font-medium">Rate per sheet</span>
-                        <span className="font-bold text-gray-900">₹{isColor ? "10.00" : (printSide === "double" ? "2.00" : "1.50")}</span>
+                        <span className="font-bold text-gray-900">₹{(pricePerSheet ?? (isColor ? 10 : (printSide === "double" ? 2 : 1.5))).toFixed(2)}</span>
                     </div>
                     {isAIDoc && (
                         <div className="flex justify-between items-center text-sm text-blue-600 font-medium">
