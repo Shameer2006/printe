@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 export default function QRScannerLanding() {
   const router = useRouter();
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const isRunningRef = useRef(false);
+  const isTransitioningRef = useRef(false);
+  const isScanningRef = useRef(false);
   const isMountedRef = useRef(true);
 
   const [cameraActive, setCameraActive] = useState(false);
@@ -22,14 +23,25 @@ export default function QRScannerLanding() {
   }, [router]);
 
   const safeStopCamera = useCallback(async () => {
-    if (scannerRef.current && isRunningRef.current) {
-      isRunningRef.current = false;
-      try {
-        await scannerRef.current.stop();
-      } catch {
-        // silent ignore
-      }
+    const scanner = scannerRef.current;
+    if (!scanner) return;
+
+    if (isTransitioningRef.current) {
+      await new Promise((r) => setTimeout(r, 200));
     }
+
+    try {
+      if (scanner.isScanning) {
+        isTransitioningRef.current = true;
+        await scanner.stop();
+        isTransitioningRef.current = false;
+        isScanningRef.current = false;
+      }
+    } catch {
+      isTransitioningRef.current = false;
+      isScanningRef.current = false;
+    }
+
     if (isMountedRef.current) {
       setCameraActive(false);
     }
@@ -106,32 +118,37 @@ export default function QRScannerLanding() {
     handleDecodedRef.current = handleDecodedText;
   }, [handleDecodedText]);
 
-  const startScanner = useCallback(() => {
+  const startScanner = useCallback(async () => {
     if (!isMountedRef.current) return;
+    if (isTransitioningRef.current || isScanningRef.current) return;
+
+    const el = document.getElementById("landing-qr-reader");
+    if (!el) return;
+
     setIsStartingCamera(true);
     setCameraError("");
 
-    // Create single scanner instance
     if (!scannerRef.current) {
       try {
         scannerRef.current = new Html5Qrcode("landing-qr-reader");
       } catch (err) {
-        console.warn("Error creating Html5Qrcode instance:", err);
+        console.warn("Could not create Html5Qrcode:", err);
+        return;
       }
     }
 
     const scanner = scannerRef.current;
     if (!scanner) return;
 
-    // If already running, do nothing
-    if (isRunningRef.current) {
+    if (scanner.isScanning) {
       setIsStartingCamera(false);
       setCameraActive(true);
       return;
     }
 
-    scanner
-      .start(
+    isTransitioningRef.current = true;
+    try {
+      await scanner.start(
         { facingMode: "environment" },
         {
           fps: 10,
@@ -140,33 +157,37 @@ export default function QRScannerLanding() {
         (decodedText) => {
           handleDecodedRef.current(decodedText);
         },
-        () => {
-          // ignore scan frame ticks
-        }
-      )
-      .then(() => {
-        if (!isMountedRef.current) {
+        () => {}
+      );
+      isTransitioningRef.current = false;
+      isScanningRef.current = true;
+
+      if (!isMountedRef.current) {
+        if (scanner.isScanning) {
           scanner.stop().catch(() => {});
-          return;
         }
-        isRunningRef.current = true;
-        setIsStartingCamera(false);
-        setCameraActive(true);
-      })
-      .catch((err: any) => {
-        if (!isMountedRef.current) return;
-        setIsStartingCamera(false);
-        setCameraActive(false);
-        // Suppress benign AbortError from React Dev Hot-Reloading
-        if (err?.name === "AbortError" || err?.message?.includes("play()")) {
-          return;
-        }
-        setCameraError(
-          err?.message?.includes("Permission")
-            ? "Camera permission denied."
-            : "Camera unavailable. Enter shop name below."
-        );
-      });
+        return;
+      }
+
+      setIsStartingCamera(false);
+      setCameraActive(true);
+    } catch (err: any) {
+      isTransitioningRef.current = false;
+      isScanningRef.current = false;
+      if (!isMountedRef.current) return;
+
+      setIsStartingCamera(false);
+      setCameraActive(false);
+
+      if (err?.name === "AbortError" || err?.message?.includes("play()") || err?.message?.includes("transition")) {
+        return;
+      }
+      setCameraError(
+        err?.message?.includes("Permission")
+          ? "Camera permission denied."
+          : "Camera unavailable. Enter shop name below."
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -175,9 +196,9 @@ export default function QRScannerLanding() {
 
     return () => {
       isMountedRef.current = false;
-      if (scannerRef.current && isRunningRef.current) {
-        isRunningRef.current = false;
-        scannerRef.current.stop().catch(() => {});
+      const scanner = scannerRef.current;
+      if (scanner && scanner.isScanning) {
+        scanner.stop().catch(() => {});
       }
     };
   }, [startScanner]);
