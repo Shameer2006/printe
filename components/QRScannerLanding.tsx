@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { Camera, ArrowRight, Store, AlertCircle, RefreshCw } from "lucide-react";
+import { Camera, ArrowRight, Store, AlertCircle, RefreshCw, MapPin, CheckCircle2, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { collection, onSnapshot, query } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+interface RegisteredStore {
+  id: string;
+  shopName: string;
+  slug: string;
+  location?: string;
+}
 
 export default function QRScannerLanding() {
   const router = useRouter();
@@ -11,12 +20,75 @@ export default function QRScannerLanding() {
   const isTransitioningRef = useRef(false);
   const isScanningRef = useRef(false);
   const isMountedRef = useRef(true);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const [cameraActive, setCameraActive] = useState(false);
   const [isStartingCamera, setIsStartingCamera] = useState(true);
   const [cameraError, setCameraError] = useState<string>("");
   const [manualCode, setManualCode] = useState("");
   const [manualError, setManualError] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Registered Stores from Firestore
+  const [allStores, setAllStores] = useState<RegisteredStore[]>([]);
+
+  // Fetch registered stores in real-time from both clients and vendors collections
+  useEffect(() => {
+    const unsubscribeClients = onSnapshot(query(collection(db, "clients")), (snapshot) => {
+      const clientStores: RegisteredStore[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        if (d.shopName && (d.status === "active" || !d.status)) {
+          const rawSlug = d.slug || docSnap.id;
+          const cleanSlug = rawSlug.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+          clientStores.push({
+            id: docSnap.id,
+            shopName: d.shopName,
+            slug: cleanSlug,
+            location: d.location || "",
+          });
+        }
+      });
+
+      setAllStores((prev) => {
+        const existingIds = new Set(clientStores.map((s) => s.slug));
+        const merged = [...clientStores, ...prev.filter((p) => !existingIds.has(p.slug))];
+        return merged;
+      });
+    }, (err) => {
+      console.warn("Could not load clients for autocomplete:", err);
+    });
+
+    const unsubscribeVendors = onSnapshot(query(collection(db, "vendors")), (snapshot) => {
+      const vendorStores: RegisteredStore[] = [];
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        if (d.storeName && (d.isActive === true || d.isActive === undefined)) {
+          const rawSlug = d.slug || docSnap.id;
+          const cleanSlug = rawSlug.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+          vendorStores.push({
+            id: docSnap.id,
+            shopName: d.storeName,
+            slug: cleanSlug,
+            location: d.location || "",
+          });
+        }
+      });
+
+      setAllStores((prev) => {
+        const existingSlugs = new Set(prev.map((s) => s.slug));
+        const newVendors = vendorStores.filter((v) => !existingSlugs.has(v.slug));
+        return [...prev, ...newVendors];
+      });
+    }, (err) => {
+      console.warn("Could not load vendors for autocomplete:", err);
+    });
+
+    return () => {
+      unsubscribeClients();
+      unsubscribeVendors();
+    };
+  }, []);
 
   const navigateToStore = useCallback((slug: string) => {
     router.push(`/store/${slug}`);
@@ -203,9 +275,42 @@ export default function QRScannerLanding() {
     };
   }, [startScanner]);
 
+  // Click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsFocused(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Case-insensitive matching filter
+  const matchingStores = useMemo(() => {
+    const clean = manualCode.trim().toLowerCase();
+    if (!clean) return [];
+
+    return allStores.filter((store) => {
+      const name = (store.shopName || "").toLowerCase();
+      const slug = (store.slug || "").toLowerCase();
+      const loc = (store.location || "").toLowerCase();
+
+      return name.includes(clean) || slug.includes(clean) || loc.includes(clean);
+    }).slice(0, 6);
+  }, [manualCode, allStores]);
+
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setManualError("");
+
+    // If there is an exact or first matching store, use its slug
+    if (matchingStores.length > 0) {
+      const topMatch = matchingStores[0];
+      safeStopCamera();
+      navigateToStore(topMatch.slug);
+      return;
+    }
 
     const clean = manualCode
       .toLowerCase()
@@ -220,6 +325,13 @@ export default function QRScannerLanding() {
 
     safeStopCamera();
     navigateToStore(clean);
+  };
+
+  const handleSelectStore = (store: RegisteredStore) => {
+    setManualCode(store.shopName);
+    setIsFocused(false);
+    safeStopCamera();
+    navigateToStore(store.slug);
   };
 
   return (
@@ -287,8 +399,8 @@ export default function QRScannerLanding() {
           </div>
         </div>
 
-        {/* Shop Name Bar */}
-        <div className="w-full">
+        {/* Shop Name Bar with Live Case-Insensitive Autocomplete */}
+        <div ref={searchContainerRef} className="w-full relative">
           <form onSubmit={handleManualSubmit} className="space-y-1">
             <div className="relative">
               <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -296,8 +408,10 @@ export default function QRScannerLanding() {
                 type="text"
                 placeholder="Enter Shop Name or Code..."
                 value={manualCode}
+                onFocus={() => setIsFocused(true)}
                 onChange={(e) => {
                   setManualCode(e.target.value);
+                  setIsFocused(true);
                   if (manualError) setManualError("");
                 }}
                 className={`w-full pl-11 pr-14 py-3.5 bg-white border rounded-2xl text-sm font-bold text-slate-900 shadow-sm outline-none transition-all ${
@@ -317,6 +431,54 @@ export default function QRScannerLanding() {
               </p>
             )}
           </form>
+
+          {/* Autocomplete Dropdown */}
+          {isFocused && manualCode.trim().length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-2 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+              {matchingStores.length > 0 ? (
+                <div className="space-y-1">
+                  <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span>Available Shops</span>
+                    <span>{matchingStores.length} found</span>
+                  </div>
+                  {matchingStores.map((store) => (
+                    <button
+                      key={store.slug}
+                      type="button"
+                      onClick={() => handleSelectStore(store)}
+                      className="w-full text-left p-3 rounded-xl hover:bg-slate-100/90 active:bg-slate-200 transition-all flex items-center justify-between group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-black group-hover:text-white flex items-center justify-center text-slate-700 transition-colors">
+                          <Store size={15} />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 group-hover:text-black flex items-center gap-1.5">
+                            {store.shopName}
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          </div>
+                          <div className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                            {store.location && (
+                              <span className="flex items-center gap-0.5 text-slate-500">
+                                <MapPin size={10} /> {store.location} •
+                              </span>
+                            )}
+                            <span>/store/{store.slug}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <ChevronRight size={14} className="text-slate-400 group-hover:text-black transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 text-center">
+                  <p className="text-xs font-semibold text-slate-600">No registered store matching &quot;{manualCode}&quot;</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Press Enter to attempt direct store lookup</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
