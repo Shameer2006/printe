@@ -124,7 +124,7 @@ export default function PrintApp() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderCode: pendingCode, paymentLinkId: savedLinkId }),
-      }).catch(() => {});
+      }).catch(() => { });
 
       // Then listen for the PAID status update in Firestore
       const unsubscribe = onSnapshot(doc(db, "orders", pendingCode), (snapshot) => {
@@ -138,7 +138,7 @@ export default function PrintApp() {
       });
       return unsubscribe; // Clean up listener on unmount
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Razorpay checkout helper (commented out — kept for reference) ---

@@ -39,38 +39,64 @@ export function QRScanner({ onClose }: QRScannerProps) {
         },
         (decodedText) => {
           console.log("QR decoded:", decodedText);
+          const raw = decodedText.trim();
 
-          // Try to extract a /store/slug from the decoded text
-          const storeMatch = decodedText.match(/\/store\/([a-zA-Z0-9_-]+)/);
+          // 1. Match /store/slug in URL or path
+          const storeMatch = raw.match(/\/store\/([a-zA-Z0-9_-]+)/i);
           if (storeMatch) {
             safeStop();
             window.location.href = `/store/${storeMatch[1]}`;
             return;
           }
 
-          // If the URL contains "printeg", redirect to its path
-          if (decodedText.includes("printeg")) {
+          // 2. Match ?vendor=slug query parameter
+          const vendorMatch = raw.match(/[?&]vendor=([a-zA-Z0-9_-]+)/i);
+          if (vendorMatch) {
+            safeStop();
+            window.location.href = `/store/${vendorMatch[1]}`;
+            return;
+          }
+
+          // 3. Match printeg:slug format
+          if (raw.toLowerCase().startsWith("printeg:")) {
+            const slug = raw.split(":")[1]?.trim();
+            if (slug) {
+              safeStop();
+              window.location.href = `/store/${slug}`;
+              return;
+            }
+          }
+
+          // 4. Match plain slug (e.g. "sri-ganesh-xerox")
+          if (/^[a-zA-Z0-9_-]{2,50}$/.test(raw) && !raw.includes(".") && !raw.includes("/")) {
+            safeStop();
+            window.location.href = `/store/${raw}`;
+            return;
+          }
+
+          // 5. If it's a URL within printeg domain, navigate to its path
+          if (raw.includes("printeg")) {
             try {
-              const url = new URL(decodedText);
+              const url = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
               safeStop();
               window.location.href = url.pathname;
               return;
             } catch {
-              // not a valid URL, continue
+              // continue
             }
           }
 
-          // If it's a plain URL, just navigate to it
+          // 6. Generic valid URL fallback
           try {
-            const url = new URL(decodedText);
+            const url = new URL(raw);
             safeStop();
             window.location.href = url.href;
             return;
           } catch {
-            // not a URL
+            // not a valid URL
           }
 
-          setError("Could not find a store link in this QR code.");
+          setError("Could not find a valid PrintEG store in this QR code.");
           setTimeout(() => setError(""), 3000);
         },
         () => {
