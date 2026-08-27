@@ -1,6 +1,6 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getStorage } from "firebase/storage";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,11 +10,13 @@ const firebaseConfig = {
     messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
-const app = initializeApp(firebaseConfig);
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Standard Firestore initialization - enables direct server writes
-const db = getFirestore(app);
+// Initialize Firestore with auto-detect long polling to avoid ad blocker ERR_BLOCKED_BY_CLIENT errors
+const db = typeof window !== 'undefined'
+    ? initializeFirestore(app, { experimentalAutoDetectLongPolling: true })
+    : getFirestore(app);
 
 const storage = getStorage(app);
 
-export { db, storage };
+export { db, storage };

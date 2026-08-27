@@ -10,6 +10,7 @@
 !.yarn/releases
 !.yarn/versions
 /admin_page
+/printeg-hardware-code
 # testing
 /coverage
 
