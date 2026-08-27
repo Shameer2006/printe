@@ -238,7 +238,7 @@ export default function PrintApp() {
   const aiCharge = isAIDoc ? 3 : 0;
   const basePrintSubtotal = (sheetsToPrint * pricePerSheet * copies) + aiCharge;
   const printPricing = calculateOrderPricing(basePrintSubtotal, { applyPlatformFee: true });
-  const totalCost = printPricing.totalAmount;
+  const totalCost = basePrintSubtotal; // Pure shop base total for visual preview on page!
 
   const handleFilesChange = (newFiles: File[], pages: number) => {
     setFiles(newFiles);
@@ -391,8 +391,8 @@ export default function PrintApp() {
         platformFee: printPricing.platformFee,
       });
 
-      // await openRazorpayCheckout(orderCode, totalCost, mobileNumber); // Razorpay (commented out)
-      await openZohoPayment(orderCode, totalCost, mobileNumber);
+      // Pass final payment amount (with platform fee applied on checkout) to Zoho
+      await openZohoPayment(orderCode, printPricing.totalAmount, mobileNumber);
 
       // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
       // setStep("complete");
@@ -617,14 +617,10 @@ export default function PrintApp() {
                             <span className="text-gray-500 font-medium">Sheets ({a4Sheets} × ₹{(pricing?.a4Sheet ?? 1).toFixed(2)})</span>
                             <span className="font-bold text-gray-900">₹{((a4Sheets || 0) * (pricing?.a4Sheet ?? 1)).toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between items-center text-sm text-gray-600 font-medium">
-                            <span>Platform Fee (8%)</span>
-                            <span className="font-semibold text-gray-900">₹{calculateOrderPricing((a4Sheets || 0) * (pricing?.a4Sheet ?? 1), { applyPlatformFee: true }).platformFee.toFixed(2)}</span>
-                          </div>
                           <div className="h-px bg-gray-100 my-1" />
                           <div className="flex justify-between items-center text-base font-bold">
                             <span>Total Pay</span>
-                            <span>₹{calculateOrderPricing((a4Sheets || 0) * (pricing?.a4Sheet ?? 1), { applyPlatformFee: true }).totalAmount.toFixed(2)}</span>
+                            <span>₹{((a4Sheets || 0) * (pricing?.a4Sheet ?? 1)).toFixed(2)}</span>
                           </div>
                         </div>
                       )}
@@ -641,7 +637,7 @@ export default function PrintApp() {
                               Processing...
                             </span>
                           ) : (
-                            `Pay ₹${calculateOrderPricing((a4Sheets || 0) * (pricing?.a4Sheet ?? 1), { applyPlatformFee: true }).totalAmount.toFixed(2)}`
+                            `Pay ₹${((a4Sheets || 0) * (pricing?.a4Sheet ?? 1)).toFixed(2)}`
                           )}
                         </Button>
                         <p className="text-xs text-center text-gray-500 font-medium">

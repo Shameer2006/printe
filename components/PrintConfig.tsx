@@ -247,12 +247,6 @@ export function PrintConfig({
                             <span>₹3.00</span>
                         </div>
                     )}
-                    {platformFee > 0 && (
-                        <div className="flex justify-between items-center text-sm text-gray-600 font-medium">
-                            <span>Platform Fee (8%)</span>
-                            <span className="font-semibold text-gray-900">₹{platformFee.toFixed(2)}</span>
-                        </div>
-                    )}
                     <div className="h-px bg-gray-200 my-1" />
                     <div className="flex justify-between items-center text-xl font-bold">
                         <span>Total Pay</span>
