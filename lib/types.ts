@@ -30,6 +30,8 @@ export interface OrderData {
   printSide?: "single" | "double";
   printLayout?: "1-in-1" | "2-in-1" | "4-in-1";
   subtotal: number;
+  gatewayFee: number;
+  gatewayFeeRate: number;
   platformFee: number;
   platformFeeRate: number;
   vendorAmount: number;

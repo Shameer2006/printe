@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Eye, X } from "lucide-react";
 import dynamic from "next/dynamic";
+import { Money, FeeLines } from "@/components/Money";
+import { calculateOrderPricing, type PricingBreakdown } from "@/lib/pricing";
 
 const PdfPreview = dynamic(() => import("./PdfPreview"), {
     ssr: false,
@@ -18,8 +20,7 @@ const PdfPreview = dynamic(() => import("./PdfPreview"), {
 interface PrintConfigProps {
     file: File | null;
     totalPages: number;
-    subtotal?: number;
-    platformFee?: number;
+    pricing?: PricingBreakdown;
     totalCost: number;
     pricePerSheet?: number;
     sheetsToPrint: number;
@@ -41,8 +42,7 @@ interface PrintConfigProps {
 export function PrintConfig({
     file,
     totalPages,
-    subtotal,
-    platformFee = 0,
+    pricing,
     totalCost,
     pricePerSheet,
     sheetsToPrint,
@@ -84,6 +84,12 @@ export function PrintConfig({
             onConfigChange({ mobileNumber, isColor, printSide, printLayout: layout });
         }
     };
+
+    const rate = pricePerSheet ?? (isColor ? 10 : (printSide === "double" ? 2 : 1.5));
+    // Fall back to deriving the breakdown from the total if the parent did not supply one.
+    const breakdown = pricing ?? calculateOrderPricing(totalCost, { applyFees: false });
+    const sheetsBilled = sheetsToPrint * copies;
+    const effectivePerSheet = sheetsBilled > 0 ? totalCost / sheetsBilled : null;
 
     return (
         <>
@@ -234,30 +240,43 @@ export function PrintConfig({
                 </div>
 
                 {/* Cost Summary - Cards */}
-                <div className="bg-gray-50 rounded-2xl p-6 space-y-3 border border-gray-100">
-                    <div className="flex justify-between items-center text-sm">
+                <div className="bg-gray-50 rounded-2xl p-5 space-y-2.5 border border-gray-100">
+                    <div className="flex justify-between items-center text-[13px]">
                         <span className="text-gray-500 font-medium">Physical sheets</span>
-                        <span className="font-bold text-gray-900">{sheetsToPrint} sheet{sheetsToPrint !== 1 ? 's' : ''} × {copies} cop{copies > 1 ? 'ies' : 'y'}</span>
+                        <span className="font-semibold text-gray-900">{sheetsToPrint} sheet{sheetsToPrint !== 1 ? 's' : ''} × {copies} cop{copies > 1 ? 'ies' : 'y'}</span>
                     </div>
-                    <div className="flex justify-between items-center text-sm">
+                    <div className="flex justify-between items-center text-[13px]">
                         <span className="text-gray-500 font-medium">Rate per sheet</span>
-                        <span className="font-bold text-gray-900">₹{(pricePerSheet ?? (isColor ? 10 : (printSide === "double" ? 2 : 1.5))).toFixed(2)}</span>
+                        <Money value={rate} className="font-semibold text-gray-900" />
                     </div>
                     {isAIDoc && (
-                        <div className="flex justify-between items-center text-sm text-blue-600 font-medium">
+                        <div className="flex justify-between items-center text-[13px] text-blue-600 font-medium">
                             <span>AI Generation Fee</span>
-                            <span>₹3.00</span>
+                            <Money value={3} className="font-semibold" />
                         </div>
                     )}
-                    <div className="h-px bg-gray-200 my-1" />
-                    <div className="flex justify-between items-center text-xl font-bold">
-                        <span>Total Pay</span>
-                        <span>₹{totalCost.toFixed(2)}</span>
+                    <div className="flex justify-between items-center text-[13px]">
+                        <span className="text-gray-500 font-medium">Print cost</span>
+                        <Money value={breakdown.subtotal} className="font-semibold text-gray-900" />
                     </div>
+
+                    <div className="h-px bg-gray-200/70" />
+                    <FeeLines pricing={breakdown} />
+                    <div className="h-px bg-gray-200/70" />
+
+                    <div className="flex justify-between items-baseline">
+                        <span className="text-sm font-semibold text-gray-600">Total Pay</span>
+                        <Money value={totalCost} className="text-base font-bold text-gray-900" />
+                    </div>
+                    {effectivePerSheet !== null && (
+                        <p className="text-[11px] text-gray-400 text-right leading-tight">
+                            Works out to ₹{effectivePerSheet.toFixed(2)} a sheet, everything included
+                        </p>
+                    )}
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-4 pt-4">
+                <div className="flex gap-4 pt-2">
                     <Button
                         variant="outline"
                         size="lg"
@@ -279,10 +298,16 @@ export function PrintConfig({
                                 Processing
                             </>
                         ) : (
-                            `Pay ₹${totalCost.toFixed(2)}`
+                            <span className="inline-flex items-baseline gap-1.5">
+                                Pay
+                                <Money value={totalCost} className="font-bold" />
+                            </span>
                         )}
                     </Button>
                 </div>
+                <p className="text-[11px] text-center text-gray-400 leading-tight">
+                    Secured by Zoho Pay · UPI, cards &amp; netbanking · No card details stored
+                </p>
             </div>
 
             {/* Preview Modal */}

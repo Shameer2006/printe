@@ -10,6 +10,8 @@ import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
 import { mergePDFs } from "@/lib/utils";
 import { calculateOrderPricing } from "@/lib/pricing";
+import { Money, FeeLines } from "@/components/Money";
+import { track } from "@/lib/analytics";
 import { saveOrderToHistory } from "@/lib/order-history";
 import { db, storage } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -122,6 +124,9 @@ export default function PrintApp() {
       // Reached only when Zoho says the link is cancelled or expired, so there is
       // nothing left to reconcile.
       sessionStorage.removeItem("printeg_pending_order");
+      // The gateway sent them back without taking the money — the sharpest
+      // drop-off signal the funnel has, since it happens off-site.
+      track("payment_abandoned", { reason: urlError });
       toast.error(urlError);
       window.history.replaceState({}, "", window.location.pathname);
       return;
@@ -246,12 +251,31 @@ export default function PrintApp() {
     : (printSide === "double" ? (pricing?.doubleSided ?? 2) : (pricing?.bw ?? 1.5));
   const aiCharge = isAIDoc ? 3 : 0;
   const basePrintSubtotal = (sheetsToPrint * pricePerSheet * copies) + aiCharge;
-  const printPricing = calculateOrderPricing(basePrintSubtotal, { applyPlatformFee: true });
-  const totalCost = basePrintSubtotal; // Pure shop base total for visual preview on page!
+  const printPricing = calculateOrderPricing(basePrintSubtotal, { applyFees: true });
+  const totalCost = printPricing.totalAmount; // What the customer is actually charged.
+
+  // A4-sheets-only tab: same breakdown, shown live as the sheet count changes.
+  const a4Pricing = calculateOrderPricing((a4Sheets || 0) * (pricing?.a4Sheet ?? 1), {
+    applyFees: true,
+  });
+
+  // Which shop a visitor actually landed on, reported once the vendor resolves.
+  useEffect(() => {
+    if (!storeName) return;
+    track("view_shop", { shop: vendor?.slug || "direct", shop_name: storeName });
+  }, [storeName, vendor?.slug]);
 
   const handleFilesChange = (newFiles: File[], pages: number) => {
     setFiles(newFiles);
     setTotalPages(pages);
+
+    if (newFiles.length > 0) {
+      track("upload_files", {
+        shop: vendor?.slug || "direct",
+        file_count: newFiles.length,
+        page_count: pages,
+      });
+    }
   };
 
   const handleConfigChange = (config: {
@@ -369,6 +393,19 @@ export default function PrintApp() {
         return;
       }
 
+      track("begin_checkout", {
+        currency: "INR",
+        value: printPricing.totalAmount,
+        shop: vendor?.slug || "direct",
+        order_type: isAIDoc ? "ai_document" : "document",
+        page_count: totalPages,
+        sheet_count: sheetsToPrint * copies,
+        copies,
+        colour: isColor ? "colour" : "bw",
+        print_side: printSide,
+        print_layout: printLayout,
+      });
+
       const code = await createOrder({
         totalPages,
         copies,
@@ -376,6 +413,8 @@ export default function PrintApp() {
         printSide,
         printLayout,
         subtotal: printPricing.subtotal,
+        gatewayFee: printPricing.gatewayFee,
+        gatewayFeeRate: printPricing.gatewayFeeRate,
         platformFee: printPricing.platformFee,
         platformFeeRate: printPricing.platformFeeRate,
         vendorAmount: printPricing.vendorAmount,
@@ -398,6 +437,7 @@ export default function PrintApp() {
         vendorSlug: vendor?.slug,
         fileUrl,
         subtotal: printPricing.subtotal,
+        gatewayFee: printPricing.gatewayFee,
         platformFee: printPricing.platformFee,
       });
 
@@ -407,9 +447,16 @@ export default function PrintApp() {
       // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
       // setStep("complete");
     } catch (error: any) {
-      if (error.message !== "Payment cancelled") {
+      const cancelled = error.message === "Payment cancelled";
+      if (!cancelled) {
         toast.error("Failed to process order. Please try again.");
       }
+      track(cancelled ? "checkout_cancelled" : "checkout_failed", {
+        currency: "INR",
+        value: printPricing.totalAmount,
+        shop: vendor?.slug || "direct",
+        order_type: "document",
+      });
       setIsProcessing(false);
     }
   };
@@ -427,9 +474,13 @@ export default function PrintApp() {
     setIsProcessing(true);
 
     try {
-      const a4Price = pricing?.a4Sheet ?? 1;
-      const a4Subtotal = a4Sheets * a4Price;
-      const a4Pricing = calculateOrderPricing(a4Subtotal, { applyPlatformFee: true });
+      track("begin_checkout", {
+        currency: "INR",
+        value: a4Pricing.totalAmount,
+        shop: vendor?.slug || "direct",
+        order_type: "blank_a4",
+        sheet_count: a4Sheets,
+      });
 
       const code = await createOrder({
         totalPages: a4Sheets,
@@ -438,6 +489,8 @@ export default function PrintApp() {
         printSide: "single",
         printLayout: "1-in-1",
         subtotal: a4Pricing.subtotal,
+        gatewayFee: a4Pricing.gatewayFee,
+        gatewayFeeRate: a4Pricing.gatewayFeeRate,
         platformFee: a4Pricing.platformFee,
         platformFeeRate: a4Pricing.platformFeeRate,
         vendorAmount: a4Pricing.vendorAmount,
@@ -461,6 +514,7 @@ export default function PrintApp() {
         storeName,
         vendorSlug: vendor?.slug,
         subtotal: a4Pricing.subtotal,
+        gatewayFee: a4Pricing.gatewayFee,
         platformFee: a4Pricing.platformFee,
       });
 
@@ -470,9 +524,16 @@ export default function PrintApp() {
       // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
       // setStep("complete");
     } catch (error: any) {
-      if (error.message !== "Payment cancelled") {
+      const cancelled = error.message === "Payment cancelled";
+      if (!cancelled) {
         toast.error("Failed to process order.");
       }
+      track(cancelled ? "checkout_cancelled" : "checkout_failed", {
+        currency: "INR",
+        value: a4Pricing.totalAmount,
+        shop: vendor?.slug || "direct",
+        order_type: "blank_a4",
+      });
       setIsProcessing(false);
     }
   };
@@ -618,14 +679,16 @@ export default function PrintApp() {
 
                       {a4Sheets >= 1 && (
                         <div className="bg-white rounded-xl p-4 space-y-2 border border-gray-200">
-                          <div className="flex justify-between items-center text-sm">
+                          <div className="flex justify-between items-center text-[13px]">
                             <span className="text-gray-500 font-medium">Sheets ({a4Sheets} × ₹{(pricing?.a4Sheet ?? 1).toFixed(2)})</span>
-                            <span className="font-bold text-gray-900">₹{((a4Sheets || 0) * (pricing?.a4Sheet ?? 1)).toFixed(2)}</span>
+                            <Money value={a4Pricing.subtotal} className="font-semibold text-gray-900" />
                           </div>
-                          <div className="h-px bg-gray-100 my-1" />
-                          <div className="flex justify-between items-center text-base font-bold">
-                            <span>Total Pay</span>
-                            <span>₹{((a4Sheets || 0) * (pricing?.a4Sheet ?? 1)).toFixed(2)}</span>
+                          <div className="h-px bg-gray-100" />
+                          <FeeLines pricing={a4Pricing} />
+                          <div className="h-px bg-gray-100" />
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-sm font-semibold text-gray-600">Total Pay</span>
+                            <Money value={a4Pricing.totalAmount} className="text-base font-bold text-gray-900" />
                           </div>
                         </div>
                       )}
@@ -642,7 +705,10 @@ export default function PrintApp() {
                               Processing...
                             </span>
                           ) : (
-                            `Pay ₹${((a4Sheets || 0) * (pricing?.a4Sheet ?? 1)).toFixed(2)}`
+                            <span className="inline-flex items-baseline gap-1.5">
+                              Pay
+                              <Money value={a4Pricing.totalAmount} className="font-bold" />
+                            </span>
                           )}
                         </Button>
                         <p className="text-xs text-center text-gray-500 font-medium">
@@ -658,8 +724,7 @@ export default function PrintApp() {
                 <PrintConfig
                   file={files.length > 0 ? files[0] : null}
                   totalPages={totalPages}
-                  subtotal={printPricing.subtotal}
-                  platformFee={printPricing.platformFee}
+                  pricing={printPricing}
                   totalCost={totalCost}
                   pricePerSheet={pricePerSheet}
                   sheetsToPrint={sheetsToPrint}

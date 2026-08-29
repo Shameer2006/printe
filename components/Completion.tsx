@@ -8,6 +8,8 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { saveOrderToHistory } from "@/lib/order-history";
+import { trackOnce } from "@/lib/analytics";
+import { Money } from "@/components/Money";
 
 interface CompletionProps {
     orderCode: string;
@@ -21,6 +23,7 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
     const [totalCost, setTotalCost] = useState(initialCost);
     const [subtotal, setSubtotal] = useState<number | undefined>(undefined);
     const [platformFee, setPlatformFee] = useState<number | undefined>(undefined);
+    const [gatewayFee, setGatewayFee] = useState<number | undefined>(undefined);
     const [isLoadingData, setIsLoadingData] = useState(!initialMobile);
     const [isGenerating, setIsGenerating] = useState(false);
     const hasDownloaded = useRef(false);
@@ -37,6 +40,7 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
                     setTotalCost(data.amount || 0);
                     if (typeof data.subtotal === "number") setSubtotal(data.subtotal);
                     if (typeof data.platformFee === "number") setPlatformFee(data.platformFee);
+                    if (typeof data.gatewayFee === "number") setGatewayFee(data.gatewayFee);
 
                     // Save/update in local storage history
                     saveOrderToHistory({
@@ -52,6 +56,7 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
                         isA4SheetsOnly: data.isA4SheetsOnly,
                         vendorSlug: data.vendorSlug,
                         subtotal: data.subtotal,
+                        gatewayFee: data.gatewayFee,
                         platformFee: data.platformFee,
                     });
                 }
@@ -64,6 +69,21 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
 
         fetchOrderData();
     }, [orderCode, initialMobile]);
+
+    // Report the completed order once the amount has settled. Keyed on the order
+    // code because this screen is reached by a gateway redirect and gets reloaded
+    // and reopened from history, which would otherwise double-count the revenue.
+    useEffect(() => {
+        if (isLoadingData || !orderCode || totalCost <= 0) return;
+        trackOnce(`purchase:${orderCode}`, "purchase", {
+            transaction_id: orderCode,
+            currency: "INR",
+            value: totalCost,
+            print_cost: subtotal,
+            gateway_fee: gatewayFee,
+            platform_fee: platformFee,
+        });
+    }, [isLoadingData, orderCode, totalCost, subtotal, gatewayFee, platformFee]);
 
     const generateReceiptPDF = useCallback(async (isAuto = false) => {
         // Prevent double auto-download in Strict Mode
@@ -219,17 +239,29 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
                 {subtotal !== undefined && (
                     <>
                         <div className="h-px bg-gray-100" />
-                        <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Subtotal</span>
-                            <span className="font-medium text-gray-700">₹{(subtotal ?? (totalCost - (platformFee || 0))).toFixed(2)}</span>
+                        <div className="flex justify-between text-[13px]">
+                            <span className="text-gray-500">Print cost</span>
+                            <Money value={subtotal} className="font-medium text-gray-700" />
                         </div>
+                        {gatewayFee !== undefined && gatewayFee > 0 && (
+                            <div className="flex justify-between text-[11px] text-gray-400">
+                                <span>Gateway charge</span>
+                                <Money value={gatewayFee} className="font-medium" />
+                            </div>
+                        )}
+                        {platformFee !== undefined && platformFee > 0 && (
+                            <div className="flex justify-between text-[11px] text-gray-400">
+                                <span>Platform charge</span>
+                                <Money value={platformFee} className="font-medium" />
+                            </div>
+                        )}
                     </>
                 )}
                 <div className="h-px bg-gray-100" />
                 <div className="flex justify-between text-base">
                     <span className="text-gray-500">Amount Paid</span>
                     <span className="font-bold text-green-600">
-                        {isLoadingData ? <Loader2 className="h-4 w-4 animate-spin" /> : `₹${totalCost.toFixed(2)}`}
+                        {isLoadingData ? <Loader2 className="h-4 w-4 animate-spin" /> : <Money value={totalCost} />}
                     </span>
                 </div>
             </div>

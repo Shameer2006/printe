@@ -17,6 +17,7 @@ export interface StoredOrder {
   vendorSlug?: string;
   fileUrl?: string;
   subtotal?: number;
+  gatewayFee?: number;
   platformFee?: number;
 }
 
