@@ -7,6 +7,13 @@ export interface PriceTier {
   colorRate?: number;       // Color (₹)
 }
 
+export interface PageRangeTier {
+  id?: string;
+  minPages: number;         // e.g., 1
+  maxPages: number | null;  // e.g., 10 (null for 41+)
+  rate: number;             // Price per page/sheet (₹)
+}
+
 export interface SpiralRangeTier {
   id?: string;
   minSheets: number;        // e.g. 1
@@ -37,7 +44,10 @@ export interface VendorPricing {
   doubleSided: number;
   a4Sheet: number;
   enableTiers?: boolean;
-  tiers?: PriceTier[];
+  singleSideTiers?: PageRangeTier[];
+  doubleSideTiers?: PageRangeTier[];
+  colorTiers?: PageRangeTier[];
+  tiers?: PriceTier[];      // Legacy backward compatibility
   binding?: BindingPricing;
 }
 

@@ -43,6 +43,21 @@ const testVendors = [
       doubleSided: 2,
       a4Sheet: 1,
       enableTiers: true,
+      singleSideTiers: [
+        { id: "1", minPages: 1, maxPages: 10, rate: 1.5 },
+        { id: "2", minPages: 11, maxPages: 40, rate: 1.2 },
+        { id: "3", minPages: 41, maxPages: null, rate: 1.0 },
+      ],
+      doubleSideTiers: [
+        { id: "1", minPages: 1, maxPages: 10, rate: 2.0 },
+        { id: "2", minPages: 11, maxPages: 40, rate: 1.8 },
+        { id: "3", minPages: 41, maxPages: null, rate: 1.5 },
+      ],
+      colorTiers: [
+        { id: "1", minPages: 1, maxPages: 10, rate: 10.0 },
+        { id: "2", minPages: 11, maxPages: 40, rate: 8.0 },
+        { id: "3", minPages: 41, maxPages: null, rate: 6.0 },
+      ],
       tiers: [
         { id: "1", minPages: 1, maxPages: 10, bwRate: 1.5, doubleSidedRate: 2.0, colorRate: 10.0 },
         { id: "2", minPages: 11, maxPages: 40, bwRate: 1.2, doubleSidedRate: 1.8, colorRate: 8.0 },
@@ -66,6 +81,21 @@ const testVendors = [
       doubleSided: 1.5,
       a4Sheet: 1,
       enableTiers: true,
+      singleSideTiers: [
+        { id: "1", minPages: 1, maxPages: 10, rate: 1.0 },
+        { id: "2", minPages: 11, maxPages: 40, rate: 0.8 },
+        { id: "3", minPages: 41, maxPages: null, rate: 0.6 },
+      ],
+      doubleSideTiers: [
+        { id: "1", minPages: 1, maxPages: 10, rate: 1.5 },
+        { id: "2", minPages: 11, maxPages: 40, rate: 1.2 },
+        { id: "3", minPages: 41, maxPages: null, rate: 1.0 },
+      ],
+      colorTiers: [
+        { id: "1", minPages: 1, maxPages: 10, rate: 8.0 },
+        { id: "2", minPages: 11, maxPages: 40, rate: 6.0 },
+        { id: "3", minPages: 41, maxPages: null, rate: 5.0 },
+      ],
       tiers: [
         { id: "1", minPages: 1, maxPages: 10, bwRate: 1.0, doubleSidedRate: 1.5, colorRate: 8.0 },
         { id: "2", minPages: 11, maxPages: 40, bwRate: 0.8, doubleSidedRate: 1.2, colorRate: 6.0 },
@@ -89,6 +119,21 @@ const testVendors = [
       doubleSided: 3,
       a4Sheet: 1,
       enableTiers: true,
+      singleSideTiers: [
+        { id: "1", minPages: 1, maxPages: 10, rate: 2.0 },
+        { id: "2", minPages: 11, maxPages: 40, rate: 1.5 },
+        { id: "3", minPages: 41, maxPages: null, rate: 1.2 },
+      ],
+      doubleSideTiers: [
+        { id: "1", minPages: 1, maxPages: 10, rate: 3.0 },
+        { id: "2", minPages: 11, maxPages: 40, rate: 2.5 },
+        { id: "3", minPages: 41, maxPages: null, rate: 2.0 },
+      ],
+      colorTiers: [
+        { id: "1", minPages: 1, maxPages: 10, rate: 12.0 },
+        { id: "2", minPages: 11, maxPages: 40, rate: 10.0 },
+        { id: "3", minPages: 41, maxPages: null, rate: 8.0 },
+      ],
       tiers: [
         { id: "1", minPages: 1, maxPages: 10, bwRate: 2.0, doubleSidedRate: 3.0, colorRate: 12.0 },
         { id: "2", minPages: 11, maxPages: 40, bwRate: 1.5, doubleSidedRate: 2.5, colorRate: 10.0 },

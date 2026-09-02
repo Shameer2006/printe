@@ -1,4 +1,4 @@
-import { PriceTier, VendorPricing, BindingPricing, BindingItemConfig } from "./types";
+import { PriceTier, PageRangeTier, VendorPricing, BindingPricing, BindingItemConfig } from "./types";
 
 export const PLATFORM_FEE_RATE = 0.08; // 8%
 export const GATEWAY_FEE_RATE = 0.02; // 2%
@@ -147,7 +147,7 @@ export interface PricingBreakdown {
 
 export interface TierPricingResult {
   rate: number;
-  matchedTier?: PriceTier;
+  matchedTier?: PriceTier | PageRangeTier;
   tierLabel?: string;
   isDiscounted: boolean;
   baseRate: number;
@@ -156,6 +156,7 @@ export interface TierPricingResult {
 
 /**
  * Calculates the unit rate per sheet based on total volume and vendor pricing tiers.
+ * Supports independent page ranges for Single Side, Double Side, and Colour with legacy fallback.
  */
 export function getTieredPricePerSheet(
   totalSheets: number,
@@ -178,69 +179,113 @@ export function getTieredPricePerSheet(
     };
   }
 
-  const tiers = pricing?.tiers;
-  if (!tiers || tiers.length === 0) {
-    return {
-      rate: baseRate,
-      baseRate,
-      isDiscounted: false,
-    };
-  }
+  // 1. Check for category-specific independent page range tiers
+  const categoryTiers: PageRangeTier[] | undefined = isColor
+    ? pricing?.colorTiers
+    : (printSide === "double" ? pricing?.doubleSideTiers : pricing?.singleSideTiers);
 
-  // Sort tiers ascending by minPages
-  const sortedTiers = [...tiers].sort((a, b) => a.minPages - b.minPages);
+  if (categoryTiers && categoryTiers.length > 0) {
+    const sortedTiers = [...categoryTiers].sort((a, b) => a.minPages - b.minPages);
+    const matched = sortedTiers.find((t) => {
+      if (totalSheets < t.minPages) return false;
+      if (t.maxPages !== null && t.maxPages !== undefined && totalSheets > t.maxPages) return false;
+      return true;
+    });
 
-  // Find the matching tier
-  const matched = sortedTiers.find((t) => {
-    if (totalSheets < t.minPages) return false;
-    if (t.maxPages !== null && t.maxPages !== undefined && totalSheets > t.maxPages) return false;
-    return true;
-  });
+    if (!matched) {
+      return {
+        rate: baseRate,
+        baseRate,
+        isDiscounted: false,
+      };
+    }
 
-  if (!matched) {
-    return {
-      rate: baseRate,
-      baseRate,
-      isDiscounted: false,
-    };
-  }
+    const rate = matched.rate ?? baseRate;
+    const tierLabel = matched.maxPages
+      ? `${matched.minPages}–${matched.maxPages} pages`
+      : `${matched.minPages}+ pages`;
 
-  let rate = baseRate;
-  if (isColor) {
-    rate = matched.colorRate ?? baseRate;
-  } else if (printSide === "double") {
-    rate = matched.doubleSidedRate ?? baseRate;
-  } else {
-    rate = matched.bwRate ?? baseRate;
-  }
-
-  const tierLabel = matched.maxPages
-    ? `${matched.minPages}–${matched.maxPages} pages`
-    : `${matched.minPages}+ pages`;
-
-  // Look for next tier discount hint if customer is close
-  let nextTierHint: string | undefined = undefined;
-  const currentTierIndex = sortedTiers.indexOf(matched);
-  if (currentTierIndex >= 0 && currentTierIndex < sortedTiers.length - 1) {
-    const nextTier = sortedTiers[currentTierIndex + 1];
-    const diff = nextTier.minPages - totalSheets;
-    if (diff > 0 && diff <= 15) {
-      const nextRate = isColor
-        ? (nextTier.colorRate ?? (pricing?.color ?? 10))
-        : (printSide === "double" ? (nextTier.doubleSidedRate ?? (pricing?.doubleSided ?? 2)) : (nextTier.bwRate ?? (pricing?.bw ?? 1.5)));
-      if (nextRate < rate) {
-        nextTierHint = `Add ${diff} more sheet${diff > 1 ? 's' : ''} to get ₹${nextRate.toFixed(2)}/sheet bulk rate!`;
+    // Next tier discount hint
+    let nextTierHint: string | undefined = undefined;
+    const currentTierIndex = sortedTiers.indexOf(matched);
+    if (currentTierIndex >= 0 && currentTierIndex < sortedTiers.length - 1) {
+      const nextTier = sortedTiers[currentTierIndex + 1];
+      const diff = nextTier.minPages - totalSheets;
+      if (diff > 0 && diff <= 15 && nextTier.rate < rate) {
+        nextTierHint = `Add ${diff} more sheet${diff > 1 ? 's' : ''} to get ₹${nextTier.rate.toFixed(2)}/sheet bulk rate!`;
       }
     }
+
+    return {
+      rate,
+      baseRate,
+      matchedTier: matched,
+      tierLabel,
+      isDiscounted: rate < baseRate,
+      nextTierHint,
+    };
+  }
+
+  // 2. Legacy fallback if vendor only has unified tiers array
+  const legacyTiers = pricing?.tiers;
+  if (legacyTiers && legacyTiers.length > 0) {
+    const sortedTiers = [...legacyTiers].sort((a, b) => a.minPages - b.minPages);
+    const matched = sortedTiers.find((t) => {
+      if (totalSheets < t.minPages) return false;
+      if (t.maxPages !== null && t.maxPages !== undefined && totalSheets > t.maxPages) return false;
+      return true;
+    });
+
+    if (!matched) {
+      return {
+        rate: baseRate,
+        baseRate,
+        isDiscounted: false,
+      };
+    }
+
+    let rate = baseRate;
+    if (isColor) {
+      rate = matched.colorRate ?? baseRate;
+    } else if (printSide === "double") {
+      rate = matched.doubleSidedRate ?? baseRate;
+    } else {
+      rate = matched.bwRate ?? baseRate;
+    }
+
+    const tierLabel = matched.maxPages
+      ? `${matched.minPages}–${matched.maxPages} pages`
+      : `${matched.minPages}+ pages`;
+
+    let nextTierHint: string | undefined = undefined;
+    const currentTierIndex = sortedTiers.indexOf(matched);
+    if (currentTierIndex >= 0 && currentTierIndex < sortedTiers.length - 1) {
+      const nextTier = sortedTiers[currentTierIndex + 1];
+      const diff = nextTier.minPages - totalSheets;
+      if (diff > 0 && diff <= 15) {
+        const nextRate = isColor
+          ? (nextTier.colorRate ?? (pricing?.color ?? 10))
+          : (printSide === "double" ? (nextTier.doubleSidedRate ?? (pricing?.doubleSided ?? 2)) : (nextTier.bwRate ?? (pricing?.bw ?? 1.5)));
+        if (nextRate < rate) {
+          nextTierHint = `Add ${diff} more sheet${diff > 1 ? 's' : ''} to get ₹${nextRate.toFixed(2)}/sheet bulk rate!`;
+        }
+      }
+    }
+
+    return {
+      rate,
+      baseRate,
+      matchedTier: matched,
+      tierLabel,
+      isDiscounted: rate < baseRate,
+      nextTierHint,
+    };
   }
 
   return {
-    rate,
+    rate: baseRate,
     baseRate,
-    matchedTier: matched,
-    tierLabel,
-    isDiscounted: rate < baseRate,
-    nextTierHint,
+    isDiscounted: false,
   };
 }
 
