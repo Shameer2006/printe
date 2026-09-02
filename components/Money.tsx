@@ -40,10 +40,10 @@ const asPercent = (rate: number) => `${(rate * 100).toFixed(1).replace(/\.0$/, "
  * quiet so the eye settles on the order itself and the amount due.
  */
 export function FeeLines({ pricing }: { pricing: PricingBreakdown }) {
-  if (pricing.gatewayFee <= 0 && pricing.platformFee <= 0) return null;
+  if ((pricing.gatewayFee || 0) <= 0 && (pricing.platformFee || 0) <= 0) return null;
 
   const platformNote =
-    pricing.platformFlatFee > 0
+    (pricing.platformFlatFee || 0) > 0
       ? "flat"
       : asPercent(pricing.platformFeeRate || PLATFORM_FEE_RATE);
 
@@ -56,7 +56,7 @@ export function FeeLines({ pricing }: { pricing: PricingBreakdown }) {
             ({asPercent(pricing.gatewayFeeRate || GATEWAY_FEE_RATE)})
           </span>
         </span>
-        <Money value={pricing.gatewayFee} className="font-medium" />
+        <Money value={pricing.gatewayFee || 0} className="font-medium" />
       </div>
       <div className="flex justify-between items-center">
         <span title="Keeps the PrintEG platform running.">

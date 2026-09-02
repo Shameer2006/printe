@@ -22,6 +22,7 @@ export interface StoredOrder {
   fileUrl?: string;
   subtotal?: number;
   platformFee?: number;
+  gatewayFee?: number;
 }
 
 const STORAGE_KEY = "printeg_order_history";

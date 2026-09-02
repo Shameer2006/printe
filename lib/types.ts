@@ -74,6 +74,8 @@ export interface OrderData {
   subtotal: number;
   platformFee: number;
   platformFeeRate: number;
+  gatewayFee?: number;
+  gatewayFeeRate?: number;
   vendorAmount: number;
   amount: number;
   fileUrl: string;

@@ -1,6 +1,7 @@
 import { PriceTier, VendorPricing, BindingPricing, BindingItemConfig } from "./types";
 
 export const PLATFORM_FEE_RATE = 0.08; // 8%
+export const GATEWAY_FEE_RATE = 0.02; // 2%
 
 export const DEFAULT_BINDING_CONFIG: BindingPricing = {
   enabled: true,
@@ -137,6 +138,9 @@ export interface PricingBreakdown {
   subtotal: number;
   platformFeeRate: number;
   platformFee: number;
+  platformFlatFee?: number;
+  gatewayFeeRate?: number;
+  gatewayFee?: number;
   vendorAmount: number;
   totalAmount: number;
 }
