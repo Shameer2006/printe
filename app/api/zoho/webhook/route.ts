@@ -61,16 +61,38 @@ export async function POST(req: NextRequest) {
 
         if (eventType === "payment_link.paid") {
             const paymentLink = payload.data?.payment_link;
-            const orderCode = paymentLink?.reference_id;
+            const rawRefId = (paymentLink?.reference_id || "").trim();
             const transactionId = paymentLink?.payment_id || paymentLink?.payment_link_id;
 
-            if (orderCode) {
+            if (rawRefId) {
+                let vendorSlug: string | undefined;
+                let orderCode = rawRefId;
+
+                if (rawRefId.includes("__")) {
+                    const parts = rawRefId.split("__");
+                    vendorSlug = parts[0];
+                    orderCode = parts[1];
+                }
+
                 const db = getAdminDb();
-                const orderRef = db.collection("orders").doc(orderCode);
-                const orderSnap = await orderRef.get();
+                let orderRef = vendorSlug
+                    ? db.collection("vendors").doc(vendorSlug).collection("orders").doc(orderCode)
+                    : db.collection("orders").doc(orderCode);
+
+                let orderSnap = await orderRef.get();
+
+                // Fallback check to root orders if vendor doc not found
+                if (!orderSnap.exists && vendorSlug) {
+                    const rootRef = db.collection("orders").doc(orderCode);
+                    const rootSnap = await rootRef.get();
+                    if (rootSnap.exists) {
+                        orderRef = rootRef;
+                        orderSnap = rootSnap;
+                    }
+                }
 
                 if (!orderSnap.exists) {
-                    console.error(`Zoho Webhook: Order ${orderCode} NOT FOUND in Firestore`);
+                    console.error(`Zoho Webhook: Order ${orderCode} (Shop: ${vendorSlug || "global"}) NOT FOUND in Firestore`);
                     return NextResponse.json({ success: true, warning: "Order not found" });
                 }
 
@@ -88,7 +110,7 @@ export async function POST(req: NextRequest) {
                     paid_via: "zoho_webhook",
                 });
 
-                console.log(`Zoho Webhook: Order ${orderCode} marked as PAID`);
+                console.log(`Zoho Webhook: Order ${orderCode} (Shop: ${vendorSlug || "global"}) marked as PAID`);
             } else {
                 console.warn("Zoho Webhook: payment_link.paid event but no reference_id found in payload");
             }

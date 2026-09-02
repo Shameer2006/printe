@@ -22,6 +22,9 @@ interface PrintConfigProps {
     platformFee?: number;
     totalCost: number;
     pricePerSheet?: number;
+    tierLabel?: string;
+    isDiscounted?: boolean;
+    nextTierHint?: string;
     sheetsToPrint: number;
     isAIDoc: boolean;
     copies: number;
@@ -34,6 +37,8 @@ interface PrintConfigProps {
     }) => void;
     onBack: () => void;
     onPayment: () => void;
+    onContinueToBinding?: () => void;
+    hasBindingServices?: boolean;
     canProceed: boolean;
     isProcessing: boolean;
 }
@@ -45,6 +50,9 @@ export function PrintConfig({
     platformFee = 0,
     totalCost,
     pricePerSheet,
+    tierLabel,
+    isDiscounted,
+    nextTierHint,
     sheetsToPrint,
     isAIDoc,
     copies,
@@ -52,6 +60,8 @@ export function PrintConfig({
     onConfigChange,
     onBack,
     onPayment,
+    onContinueToBinding,
+    hasBindingServices = true,
     canProceed,
     isProcessing
 }: PrintConfigProps) {
@@ -240,9 +250,22 @@ export function PrintConfig({
                         <span className="font-bold text-gray-900">{sheetsToPrint} sheet{sheetsToPrint !== 1 ? 's' : ''} × {copies} cop{copies > 1 ? 'ies' : 'y'}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-500 font-medium">Rate per sheet</span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-gray-500 font-medium">Rate per sheet</span>
+                            {tierLabel && (
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isDiscounted ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'}`}>
+                                    {tierLabel}
+                                </span>
+                            )}
+                        </div>
                         <span className="font-bold text-gray-900">₹{(pricePerSheet ?? (isColor ? 10 : (printSide === "double" ? 2 : 1.5))).toFixed(2)}</span>
                     </div>
+                    {nextTierHint && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-xs text-emerald-800 font-semibold flex items-center gap-1.5 animate-in fade-in duration-200">
+                            <span>💡</span>
+                            <span>{nextTierHint}</span>
+                        </div>
+                    )}
                     {isAIDoc && (
                         <div className="flex justify-between items-center text-sm text-blue-600 font-medium">
                             <span>AI Generation Fee</span>
@@ -269,7 +292,7 @@ export function PrintConfig({
                     </Button>
                     <Button
                         size="lg"
-                        onClick={onPayment}
+                        onClick={onContinueToBinding && hasBindingServices ? onContinueToBinding : onPayment}
                         disabled={!canProceed || isProcessing}
                         className="flex-[2] h-14 rounded-2xl bg-black hover:bg-gray-800 text-white shadow-lg shadow-black/5 text-base font-bold"
                     >
@@ -278,6 +301,8 @@ export function PrintConfig({
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                 Processing
                             </>
+                        ) : onContinueToBinding && hasBindingServices ? (
+                            "Next: Binding & Finishing →"
                         ) : (
                             `Pay ₹${totalCost.toFixed(2)}`
                         )}

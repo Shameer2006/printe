@@ -23,6 +23,7 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getOrderHistory, removeOrderFromHistory, StoredOrder } from "@/lib/order-history";
+import { getOrderDocRef } from "@/lib/orderCode";
 import { Button } from "@/components/ui/button";
 
 interface LiveOrderStatus {
@@ -52,7 +53,17 @@ export default function OrderHistoryPage() {
     await Promise.all(
       stored.map(async (order) => {
         try {
-          const snap = await getDoc(doc(db, "orders", order.orderCode));
+          const orderDocRef = getOrderDocRef(db, order.orderCode, order.vendorSlug);
+          let snap = await getDoc(orderDocRef);
+
+          // Fallback check to root orders collection
+          if (!snap.exists() && order.vendorSlug) {
+            const rootSnap = await getDoc(doc(db, "orders", order.orderCode));
+            if (rootSnap.exists()) {
+              snap = rootSnap;
+            }
+          }
+
           if (snap.exists()) {
             const data = snap.data();
             statusMap[order.orderCode] = {

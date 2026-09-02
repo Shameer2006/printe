@@ -24,8 +24,9 @@ export async function GET(req: NextRequest) {
     }
 
     // --- Payment Callback Flow ---
-    // After payment, Zoho redirects with ?orderCode=...&status=...
+    // After payment, Zoho redirects with ?orderCode=...&vendorSlug=...&status=...
     const orderCode = searchParams.get("orderCode");
+    const vendorSlug = searchParams.get("vendorSlug");
     const statusValues = searchParams.getAll("status");
     const paymentStatus = searchParams.get("payment_status");
     
@@ -37,15 +38,29 @@ export async function GET(req: NextRequest) {
         paymentStatus === "succeeded";
 
     // Determine the correct redirect base path
-    // The base URL for the redirect — always the public site root
-    const redirectUrl = new URL("/", req.url);
+    const redirectUrl = vendorSlug 
+        ? new URL(`/store/${vendorSlug}`, req.url)
+        : new URL("/", req.url);
 
     if (isSuccess && orderCode) {
         // Mark the order as PAID using Firebase Admin SDK (bypasses security rules)
         try {
             const db = getAdminDb();
-            const orderRef = db.collection("orders").doc(orderCode);
-            const orderSnap = await orderRef.get();
+            let orderRef = vendorSlug
+                ? db.collection("vendors").doc(vendorSlug).collection("orders").doc(orderCode)
+                : db.collection("orders").doc(orderCode);
+
+            let orderSnap = await orderRef.get();
+
+            // Fallback check to root orders if vendor doc not found
+            if (!orderSnap.exists && vendorSlug) {
+                const rootRef = db.collection("orders").doc(orderCode);
+                const rootSnap = await rootRef.get();
+                if (rootSnap.exists) {
+                    orderRef = rootRef;
+                    orderSnap = rootSnap;
+                }
+            }
 
             if (orderSnap.exists) {
                 const currentData = orderSnap.data();
@@ -56,7 +71,7 @@ export async function GET(req: NextRequest) {
                         paid_at: new Date().toISOString(),
                         paid_via: "zoho_callback",
                     });
-                    console.log(`Zoho Callback: Order ${orderCode} marked as PAID`);
+                    console.log(`Zoho Callback: Order ${orderCode} (Shop: ${vendorSlug || "global"}) marked as PAID`);
                 } else {
                     console.log(`Zoho Callback: Order ${orderCode} already PAID, skipping update`);
                 }
@@ -65,22 +80,6 @@ export async function GET(req: NextRequest) {
             }
         } catch (error) {
             console.error(`Zoho Callback: Failed to update order ${orderCode}:`, error);
-            // Still redirect user to completion — verify-payment API or Firestore listener will retry
-        }
-
-        // Check if the order belongs to a vendor store and redirect accordingly
-        try {
-            const db = getAdminDb();
-            const orderSnap = await db.collection("orders").doc(orderCode).get();
-            const vendorSlug = orderSnap.data()?.vendorSlug;
-            if (vendorSlug) {
-                const storeRedirectUrl = new URL(`/store/${vendorSlug}`, req.url);
-                storeRedirectUrl.searchParams.set("step", "complete");
-                storeRedirectUrl.searchParams.set("orderCode", orderCode);
-                return NextResponse.redirect(storeRedirectUrl, 303);
-            }
-        } catch {
-            // Ignore — fall through to default redirect
         }
 
         redirectUrl.searchParams.set("step", "complete");

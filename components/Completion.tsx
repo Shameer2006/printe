@@ -8,6 +8,8 @@ import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { saveOrderToHistory } from "@/lib/order-history";
+import { getOrderDocRef } from "@/lib/orderCode";
+import { useVendor } from "@/lib/vendor-context";
 
 interface CompletionProps {
     orderCode: string;
@@ -16,6 +18,7 @@ interface CompletionProps {
 }
 
 export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: initialCost }: CompletionProps) {
+    const { vendor } = useVendor();
     const [copied, setCopied] = useState(false);
     const [mobileNumber, setMobileNumber] = useState(initialMobile);
     const [totalCost, setTotalCost] = useState(initialCost);
@@ -30,7 +33,18 @@ export function Completion({ orderCode, mobileNumber: initialMobile, totalCost: 
             if (initialMobile) return; // We already have it (no redirect happened)
 
             try {
-                const orderDoc = await getDoc(doc(db, "orders", orderCode));
+                const vendorSlug = vendor?.slug;
+                const orderDocRef = getOrderDocRef(db, orderCode, vendorSlug);
+                let orderDoc = await getDoc(orderDocRef);
+
+                // Backwards compatibility fallback to root orders
+                if (!orderDoc.exists() && vendorSlug) {
+                    const rootDoc = await getDoc(doc(db, "orders", orderCode));
+                    if (rootDoc.exists()) {
+                        orderDoc = rootDoc;
+                    }
+                }
+
                 if (orderDoc.exists()) {
                     const data = orderDoc.data();
                     setMobileNumber(data.mobileNumber || "");

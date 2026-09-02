@@ -4,7 +4,7 @@ import { getZohoAccessToken } from "@/lib/zoho-auth";
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { orderCode, amount, mobileNumber } = body;
+        const { orderCode, amount, mobileNumber, vendorSlug } = body;
 
         if (!orderCode || !amount || !mobileNumber) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -19,13 +19,16 @@ export async function POST(req: NextRequest) {
         const accessToken = await getZohoAccessToken();
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
+        // Composite reference_id if vendor is present to allow shop identification in webhooks
+        const referenceId = vendorSlug ? `${vendorSlug}__${orderCode}` : orderCode;
+
         // Zoho Payments API v1 - exact structure from official docs
         const payload: any = {
             amount: parseFloat(Number(amount).toFixed(2)),
             currency: "INR",
             phone: mobileNumber,
             phone_country_code: "IN",
-            reference_id: orderCode,
+            reference_id: referenceId,
             description: `PrintEG Order - ${orderCode}`,
         };
 
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest) {
         const publicBase = (baseUrl && !baseUrl.includes('localhost'))
             ? baseUrl
             : "https://www.printeg.in"; // fallback for local dev testing on production
-        payload.return_url = `${publicBase}/api/zoho/callback?orderCode=${orderCode}&status=success`;
+        payload.return_url = `${publicBase}/api/zoho/callback?orderCode=${orderCode}&vendorSlug=${vendorSlug || ""}&status=success`;
 
         const url = `https://payments.zoho.in/api/v1/paymentlinks?account_id=${accountId}`;
 
@@ -53,9 +56,15 @@ export async function POST(req: NextRequest) {
             try {
                 const { getAdminDb } = await import("@/lib/firebase-admin");
                 const adminDb = getAdminDb();
-                await adminDb.collection("orders").doc(orderCode).update({
-                    zoho_payment_link_id: data.payment_links.payment_link_id,
-                });
+                if (vendorSlug) {
+                    await adminDb.collection("vendors").doc(vendorSlug).collection("orders").doc(orderCode).update({
+                        zoho_payment_link_id: data.payment_links.payment_link_id,
+                    }).catch(() => {});
+                } else {
+                    await adminDb.collection("orders").doc(orderCode).update({
+                        zoho_payment_link_id: data.payment_links.payment_link_id,
+                    }).catch(() => {});
+                }
             } catch (err) {
                 console.warn("Failed to save payment_link_id to Firestore order:", err);
                 // Non-fatal — the client also saves it to sessionStorage

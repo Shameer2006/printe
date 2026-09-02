@@ -37,7 +37,18 @@ const testVendors = [
     themeColor: "#1a1a2e",
     isActive: true,
     createdAt: new Date().toISOString(),
-    pricing: { bw: 1.5, color: 10, doubleSided: 2, a4Sheet: 1 },
+    pricing: {
+      bw: 1.5,
+      color: 10,
+      doubleSided: 2,
+      a4Sheet: 1,
+      enableTiers: true,
+      tiers: [
+        { id: "1", minPages: 1, maxPages: 10, bwRate: 1.5, doubleSidedRate: 2.0, colorRate: 10.0 },
+        { id: "2", minPages: 11, maxPages: 40, bwRate: 1.2, doubleSidedRate: 1.8, colorRate: 8.0 },
+        { id: "3", minPages: 41, maxPages: null, bwRate: 1.0, doubleSidedRate: 1.5, colorRate: 6.0 },
+      ],
+    },
   },
   {
     slug: "campus-prints",
@@ -49,7 +60,18 @@ const testVendors = [
     themeColor: "#0f4c75",
     isActive: true,
     createdAt: new Date().toISOString(),
-    pricing: { bw: 1, color: 8, doubleSided: 1.5, a4Sheet: 1 },
+    pricing: {
+      bw: 1,
+      color: 8,
+      doubleSided: 1.5,
+      a4Sheet: 1,
+      enableTiers: true,
+      tiers: [
+        { id: "1", minPages: 1, maxPages: 10, bwRate: 1.0, doubleSidedRate: 1.5, colorRate: 8.0 },
+        { id: "2", minPages: 11, maxPages: 40, bwRate: 0.8, doubleSidedRate: 1.2, colorRate: 6.0 },
+        { id: "3", minPages: 41, maxPages: null, bwRate: 0.6, doubleSidedRate: 1.0, colorRate: 5.0 },
+      ],
+    },
   },
   {
     slug: "quick-copy-center",
@@ -61,7 +83,18 @@ const testVendors = [
     themeColor: "#e94560",
     isActive: true,
     createdAt: new Date().toISOString(),
-    pricing: { bw: 2, color: 12, doubleSided: 3, a4Sheet: 1 },
+    pricing: {
+      bw: 2,
+      color: 12,
+      doubleSided: 3,
+      a4Sheet: 1,
+      enableTiers: true,
+      tiers: [
+        { id: "1", minPages: 1, maxPages: 10, bwRate: 2.0, doubleSidedRate: 3.0, colorRate: 12.0 },
+        { id: "2", minPages: 11, maxPages: 40, bwRate: 1.5, doubleSidedRate: 2.5, colorRate: 10.0 },
+        { id: "3", minPages: 41, maxPages: null, bwRate: 1.2, doubleSidedRate: 2.0, colorRate: 8.0 },
+      ],
+    },
   },
 ];
 

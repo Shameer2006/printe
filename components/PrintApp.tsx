@@ -8,11 +8,12 @@ import { Completion } from "@/components/Completion";
 import { AIDocumentGenerator } from "@/components/AIDocumentGenerator";
 import { QRScanner } from "@/components/QRScanner";
 import { Button } from "@/components/ui/button";
-import { mergePDFs, generateOrderCode } from "@/lib/utils";
-import { calculateOrderPricing } from "@/lib/pricing";
+import { mergePDFs } from "@/lib/utils";
+import { getAvailableShopOrderCode, getOrderDocRef } from "@/lib/orderCode";
+import { calculateOrderPricing, getTieredPricePerSheet } from "@/lib/pricing";
 import { saveOrderToHistory } from "@/lib/order-history";
 import { db, storage } from "@/lib/firebase";
-import { doc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "sonner";
 import { Loader2, ScanLine, Clock } from "lucide-react";
@@ -21,6 +22,10 @@ import Image from "next/image";
 import Script from "next/script";
 import heroImage from "../app/image.png";
 import { useVendor } from "@/lib/vendor-context";
+import { InAppBrowserBanner } from "@/components/InAppBrowserBanner";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
+import { BindingSelection } from "@/components/BindingSelection";
+import { tryOpenInChrome, isAndroid, isInAppBrowser } from "@/lib/browser-utils";
 
 // --- Razorpay (commented out — kept for reference) ---
 // declare global {
@@ -29,7 +34,7 @@ import { useVendor } from "@/lib/vendor-context";
 //   }
 // }
 
-type Step = "upload" | "config" | "payment" | "complete";
+type Step = "upload" | "config" | "binding" | "complete";
 type Mode = "upload" | "ai-doc" | "a4-sheet";
 
 export default function PrintApp() {
@@ -51,33 +56,57 @@ export default function PrintApp() {
   const [isAIDoc, setIsAIDoc] = useState(false);
   const [copies, setCopies] = useState(1);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const isSubmittingPaymentRef = useRef(false);
+
+  // Auto-breakout to Chrome on Android if opened via Google Search Webview
+  useEffect(() => {
+    const urlStep = searchParams.get("step");
+    const isPaymentReturn = !!urlStep || !!searchParams.get("orderCode");
+    const isDismissed = sessionStorage.getItem("printeg_auto_chrome_attempted");
+
+    if (!isPaymentReturn && !isDismissed && isAndroid() && isInAppBrowser()) {
+      sessionStorage.setItem("printeg_auto_chrome_attempted", "true");
+      tryOpenInChrome();
+    }
+  }, [searchParams]);
 
   // Read URL params set by the payment gateway callback redirect
-  // Also handles mobile GPay fallback via Firestore real-time listener
+  // Also handles mobile GPay fallback via Firestore real-time listener & localStorage recovery
   useEffect(() => {
     const urlStep = searchParams.get("step");
     const urlOrderCode = searchParams.get("orderCode");
     const urlError = searchParams.get("error");
+    const vendorSlug = vendor?.slug;
 
     if (urlStep === "complete" && urlOrderCode) {
       // Normal redirect worked — show Completion and clean up
       setOrderCode(urlOrderCode);
       setStep("complete");
-      const savedLinkId = sessionStorage.getItem("printeg_payment_link_id") || "";
-      sessionStorage.removeItem("printeg_pending_order");
-      sessionStorage.removeItem("printeg_payment_link_id");
+      const savedLinkId = localStorage.getItem("printeg_payment_link_id") || "";
+      localStorage.removeItem("printeg_pending_order");
+      localStorage.removeItem("printeg_payment_link_id");
+      localStorage.removeItem("printeg_pending_time");
       window.history.replaceState({}, "", window.location.pathname);
 
       // Client-side fallback: directly update Firestore in case server-side Admin SDK failed
-      // (e.g. missing FIREBASE_ADMIN_CLIENT_EMAIL / FIREBASE_ADMIN_PRIVATE_KEY)
       (async () => {
         try {
-          const orderRef = doc(db, "orders", urlOrderCode);
-          const { getDoc } = await import("firebase/firestore");
-          const snap = await getDoc(orderRef);
+          const orderRef = getOrderDocRef(db, urlOrderCode, vendorSlug);
+          let snap = await getDoc(orderRef);
+          let targetRef = orderRef;
+
+          // Backwards compatibility fallback to root orders collection
+          if (!snap.exists() && vendorSlug) {
+            const rootRef = doc(db, "orders", urlOrderCode);
+            const rootSnap = await getDoc(rootRef);
+            if (rootSnap.exists()) {
+              snap = rootSnap;
+              targetRef = rootRef;
+            }
+          }
+
           if (snap.exists() && snap.data()?.payment_status !== "PAID") {
-            const { updateDoc } = await import("firebase/firestore");
-            await updateDoc(orderRef, {
+            await updateDoc(targetRef, {
               payment_status: "PAID",
               paid_at: new Date().toISOString(),
               paid_via: "client_fallback",
@@ -89,11 +118,11 @@ export default function PrintApp() {
         }
       })();
 
-      // Also verify payment & update DB via server-side Admin SDK (belt-and-suspenders)
+      // Also verify payment & update DB via server-side Admin SDK
       fetch("/api/zoho/verify-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderCode: urlOrderCode, paymentLinkId: savedLinkId }),
+        body: JSON.stringify({ orderCode: urlOrderCode, paymentLinkId: savedLinkId, vendorSlug }),
       })
         .then((res) => res.json())
         .then((data) => {
@@ -112,34 +141,83 @@ export default function PrintApp() {
       return;
     }
 
-    // --- Mobile GPay fallback ---
-    // On mobile, GPay opens as a native app. When it returns to the browser,
-    // Zoho's success page redirect often doesn't fire. We save the orderCode
-    // to sessionStorage before leaving, then listen to Firestore here.
-    const pendingCode = sessionStorage.getItem("printeg_pending_order");
-    if (pendingCode) {
-      // Actively verify with server first
-      const savedLinkId = sessionStorage.getItem("printeg_payment_link_id") || "";
-      fetch("/api/zoho/verify-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderCode: pendingCode, paymentLinkId: savedLinkId }),
-      }).catch(() => { });
+    // --- Mobile GPay / PhonePe / WebView recovery via persistent localStorage ---
+    const pendingCode = localStorage.getItem("printeg_pending_order");
+    const pendingTime = parseInt(localStorage.getItem("printeg_pending_time") || "0");
+    const isRecent = Date.now() - pendingTime < 15 * 60 * 1000; // 15 min TTL
 
-      // Then listen for the PAID status update in Firestore
-      const unsubscribe = onSnapshot(doc(db, "orders", pendingCode), (snapshot) => {
+    if (pendingCode && isRecent) {
+      const savedLinkId = localStorage.getItem("printeg_payment_link_id") || "";
+
+      const verifyPendingOrder = async () => {
+        try {
+          const targetOrderRef = getOrderDocRef(db, pendingCode, vendorSlug);
+          let snap = await getDoc(targetOrderRef);
+          if (!snap.exists() && vendorSlug) {
+            const rootSnap = await getDoc(doc(db, "orders", pendingCode));
+            if (rootSnap.exists()) snap = rootSnap;
+          }
+
+          if (snap.exists() && snap.data()?.payment_status === "PAID") {
+            setOrderCode(pendingCode);
+            setStep("complete");
+            localStorage.removeItem("printeg_pending_order");
+            localStorage.removeItem("printeg_payment_link_id");
+            localStorage.removeItem("printeg_pending_time");
+            return;
+          }
+
+          const res = await fetch("/api/zoho/verify-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderCode: pendingCode, paymentLinkId: savedLinkId, vendorSlug }),
+          });
+          const data = await res.json();
+          if (data.verified || data.paymentStatus === "PAID") {
+            setOrderCode(pendingCode);
+            setStep("complete");
+            localStorage.removeItem("printeg_pending_order");
+            localStorage.removeItem("printeg_payment_link_id");
+            localStorage.removeItem("printeg_pending_time");
+          }
+        } catch (err) {
+          console.warn("Background order verification check failed:", err);
+        }
+      };
+
+      verifyPendingOrder();
+
+      const targetOrderRef = getOrderDocRef(db, pendingCode, vendorSlug);
+      const unsubscribe = onSnapshot(targetOrderRef, (snapshot) => {
         if (snapshot.exists() && snapshot.data()?.payment_status === "PAID") {
           setOrderCode(pendingCode);
           setStep("complete");
-          sessionStorage.removeItem("printeg_pending_order");
-          sessionStorage.removeItem("printeg_payment_link_id");
+          localStorage.removeItem("printeg_pending_order");
+          localStorage.removeItem("printeg_payment_link_id");
+          localStorage.removeItem("printeg_pending_time");
           unsubscribe();
         }
       });
-      return unsubscribe; // Clean up listener on unmount
+
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === "visible") {
+          verifyPendingOrder();
+        }
+      };
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("focus", handleVisibilityChange);
+
+      return () => {
+        unsubscribe();
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        window.removeEventListener("focus", handleVisibilityChange);
+      };
+    } else if (pendingCode && !isRecent) {
+      localStorage.removeItem("printeg_pending_order");
+      localStorage.removeItem("printeg_payment_link_id");
+      localStorage.removeItem("printeg_pending_time");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [vendor?.slug, searchParams]);
 
   // --- Razorpay checkout helper (commented out — kept for reference) ---
   // const openRazorpayCheckout = async (code: string, amount: number, mobile: string) => {
@@ -204,6 +282,7 @@ export default function PrintApp() {
         orderCode: code,
         amount,
         mobileNumber: mobile,
+        vendorSlug: vendor?.slug,
       }),
     });
 
@@ -213,10 +292,11 @@ export default function PrintApp() {
       throw new Error(data.error || "Failed to create payment link");
     }
 
-    // Save orderCode and paymentLinkId for verification after return
-    sessionStorage.setItem("printeg_pending_order", code);
+    // Save orderCode and paymentLinkId in localStorage for bulletproof cross-app persistence
+    localStorage.setItem("printeg_pending_order", code);
+    localStorage.setItem("printeg_pending_time", String(Date.now()));
     if (data.paymentLinkId) {
-      sessionStorage.setItem("printeg_payment_link_id", data.paymentLinkId);
+      localStorage.setItem("printeg_payment_link_id", data.paymentLinkId);
     }
 
     // Redirect user to Zoho's hosted payment page
@@ -230,13 +310,17 @@ export default function PrintApp() {
   const pagesPerSide = printLayout === "2-in-1" ? 2 : 1;
   const sidesPerSheet = printSide === "double" ? 2 : 1;
   const sheetsToPrint = Math.ceil(totalPages / (pagesPerSide * sidesPerSheet));
+  const totalSheetsToPrint = sheetsToPrint * copies;
 
   const pricing = vendor?.pricing;
-  const pricePerSheet = isColor
-    ? (pricing?.color ?? 10)
-    : (printSide === "double" ? (pricing?.doubleSided ?? 2) : (pricing?.bw ?? 1.5));
+  const tieredResult = getTieredPricePerSheet(totalSheetsToPrint, {
+    isColor,
+    printSide,
+    pricing,
+  });
+  const pricePerSheet = tieredResult.rate;
   const aiCharge = isAIDoc ? 3 : 0;
-  const basePrintSubtotal = (sheetsToPrint * pricePerSheet * copies) + aiCharge;
+  const basePrintSubtotal = (totalSheetsToPrint * pricePerSheet) + aiCharge;
   const printPricing = calculateOrderPricing(basePrintSubtotal, { applyPlatformFee: true });
   const totalCost = basePrintSubtotal; // Pure shop base total for visual preview on page!
 
@@ -264,50 +348,62 @@ export default function PrintApp() {
   const handleContinue = async () => {
     if (files.length === 0) return;
 
-    setIsAIDoc(false);
-    setStep("config");
+    setIsProcessing(true);
+    try {
+      const code = await getAvailableShopOrderCode(db, vendor?.slug);
+      setOrderCode(code);
+      setIsAIDoc(false);
+      setStep("config");
 
-    const code = generateOrderCode();
-    setOrderCode(code);
-
-    uploadPromiseRef.current = (async () => {
-      try {
-        const mergedPdf = await mergePDFs(files);
-        const storageRef = ref(storage, `orders/${code}_${Date.now()}.pdf`);
-        await uploadBytes(storageRef, mergedPdf);
-        const url = await getDownloadURL(storageRef);
-        return url;
-      } catch (error) {
-        throw error;
-      }
-    })();
+      uploadPromiseRef.current = (async () => {
+        try {
+          const mergedPdf = await mergePDFs(files);
+          const storageRef = ref(storage, `orders/${code}_${Date.now()}.pdf`);
+          await uploadBytes(storageRef, mergedPdf);
+          const url = await getDownloadURL(storageRef);
+          return url;
+        } catch (error) {
+          throw error;
+        }
+      })();
+    } catch (error) {
+      console.error("Failed to initialize shop order session:", error);
+      toast.error("Failed to start order. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleAIProceed = async (blob: Blob, pages: number) => {
     setIsProcessing(true);
-    setIsAIDoc(true);
-    setStep("config");
-    setTotalPages(pages);
+    try {
+      const code = await getAvailableShopOrderCode(db, vendor?.slug);
+      setOrderCode(code);
+      setIsAIDoc(true);
+      setStep("config");
+      setTotalPages(pages);
 
-    const code = generateOrderCode();
-    setOrderCode(code);
+      const file = new File([blob], "AI_Document.pdf", { type: "application/pdf" });
+      setFiles([file]);
 
-    const file = new File([blob], "AI_Document.pdf", { type: "application/pdf" });
-    setFiles([file]);
-
-    uploadPromiseRef.current = (async () => {
-      try {
-        const storageRef = ref(storage, `orders/${code}_${Date.now()}.pdf`);
-        await uploadBytes(storageRef, blob);
-        const url = await getDownloadURL(storageRef);
-        return url;
-      } catch (error) {
-        console.error("AI PDF upload failed:", error);
-        throw error;
-      } finally {
-        setIsProcessing(false);
-      }
-    })();
+      uploadPromiseRef.current = (async () => {
+        try {
+          const storageRef = ref(storage, `orders/${code}_${Date.now()}.pdf`);
+          await uploadBytes(storageRef, blob);
+          const url = await getDownloadURL(storageRef);
+          return url;
+        } catch (error) {
+          console.error("AI PDF upload failed:", error);
+          throw error;
+        } finally {
+          setIsProcessing(false);
+        }
+      })();
+    } catch (error) {
+      console.error("Failed to start AI order session:", error);
+      toast.error("Failed to start AI order. Please try again.");
+      setIsProcessing(false);
+    }
   };
 
   const buildOrderData = (code: string, extra: Record<string, any>) => {
@@ -325,12 +421,20 @@ export default function PrintApp() {
     return base;
   };
 
-  const handlePayment = async () => {
+  const handlePayment = async (bindingData?: {
+    bindingId: string;
+    bindingName: string;
+    bindingOption: "standard" | "with_print" | "without_print";
+    bindingPrice: number;
+    totalAmount: number;
+  }) => {
     if (!canProceedToPayment()) {
       toast.error("Please complete all fields before proceeding");
       return;
     }
 
+    if (isSubmittingPaymentRef.current || isProcessing) return;
+    isSubmittingPaymentRef.current = true;
     setIsProcessing(true);
 
     try {
@@ -357,17 +461,33 @@ export default function PrintApp() {
         setTimeout(() => reject(new Error('Firestore write timeout after 30 seconds.')), 30000);
       });
 
-      const writePromise = setDoc(doc(db, "orders", orderCode), buildOrderData(orderCode, {
+      const selectedBinding = bindingData || {
+        bindingId: "none",
+        bindingName: "None (Loose Sheets)",
+        bindingOption: "none" as const,
+        bindingPrice: 0,
+        totalAmount: printPricing.totalAmount,
+      };
+
+      const finalSubtotal = basePrintSubtotal + selectedBinding.bindingPrice;
+      const finalPricing = calculateOrderPricing(finalSubtotal, { applyPlatformFee: true });
+
+      const orderDocRef = getOrderDocRef(db, orderCode, vendor?.slug);
+      const writePromise = setDoc(orderDocRef, buildOrderData(orderCode, {
         totalPages,
         copies,
         isColor,
         printSide,
         printLayout,
-        subtotal: printPricing.subtotal,
-        platformFee: printPricing.platformFee,
-        platformFeeRate: printPricing.platformFeeRate,
-        vendorAmount: printPricing.vendorAmount,
-        amount: printPricing.totalAmount,
+        bindingId: selectedBinding.bindingId,
+        bindingName: selectedBinding.bindingName,
+        bindingOption: selectedBinding.bindingOption,
+        bindingPrice: selectedBinding.bindingPrice,
+        subtotal: finalPricing.subtotal,
+        platformFee: finalPricing.platformFee,
+        platformFeeRate: finalPricing.platformFeeRate,
+        vendorAmount: finalPricing.vendorAmount,
+        amount: finalPricing.totalAmount,
         fileUrl,
       }));
 
@@ -377,30 +497,33 @@ export default function PrintApp() {
       saveOrderToHistory({
         orderCode,
         createdAt: new Date().toISOString(),
-        amount: printPricing.totalAmount,
+        amount: finalPricing.totalAmount,
         mobileNumber,
         totalPages,
         copies,
         isColor,
         printSide,
         printLayout,
+        bindingId: selectedBinding.bindingId,
+        bindingName: selectedBinding.bindingName,
+        bindingOption: selectedBinding.bindingOption,
+        bindingPrice: selectedBinding.bindingPrice,
         storeName,
         vendorSlug: vendor?.slug,
         fileUrl,
-        subtotal: printPricing.subtotal,
-        platformFee: printPricing.platformFee,
+        subtotal: finalPricing.subtotal,
+        platformFee: finalPricing.platformFee,
       });
 
       // Pass final payment amount (with platform fee applied on checkout) to Zoho
-      await openZohoPayment(orderCode, printPricing.totalAmount, mobileNumber);
-
-      // Note: setStep("complete") will happen after user returns from Zoho via callback redirect
-      // setStep("complete");
+      await openZohoPayment(orderCode, finalPricing.totalAmount, mobileNumber);
     } catch (error: any) {
       if (error.message !== "Payment cancelled") {
         toast.error("Failed to process order. Please try again.");
       }
       setIsProcessing(false);
+    } finally {
+      isSubmittingPaymentRef.current = false;
     }
   };
 
@@ -414,16 +537,19 @@ export default function PrintApp() {
       return;
     }
 
+    if (isSubmittingPaymentRef.current || isProcessing) return;
+    isSubmittingPaymentRef.current = true;
     setIsProcessing(true);
 
     try {
-      const code = generateOrderCode();
+      const code = await getAvailableShopOrderCode(db, vendor?.slug);
       setOrderCode(code);
       const a4Price = pricing?.a4Sheet ?? 1;
       const a4Subtotal = a4Sheets * a4Price;
       const a4Pricing = calculateOrderPricing(a4Subtotal, { applyPlatformFee: true });
 
-      const writePromise = setDoc(doc(db, "orders", code), buildOrderData(code, {
+      const orderDocRef = getOrderDocRef(db, code, vendor?.slug);
+      const writePromise = setDoc(orderDocRef, buildOrderData(code, {
         totalPages: a4Sheets,
         copies: 1,
         isColor: false,
@@ -469,6 +595,8 @@ export default function PrintApp() {
         toast.error("Failed to process order.");
       }
       setIsProcessing(false);
+    } finally {
+      isSubmittingPaymentRef.current = false;
     }
   };
 
@@ -477,7 +605,7 @@ export default function PrintApp() {
 
   return (
     <main className="min-h-screen bg-transparent text-black flex flex-col relative">
-      {/* <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" /> */}{/* Razorpay script (commented out) */}
+      <InAppBrowserBanner />
       {/* QR Scanner Modal */}
       {showQRScanner && <QRScanner onClose={() => setShowQRScanner(false)} />}
       <div className="flex-1 flex flex-col justify-center items-center py-12 px-2">
@@ -540,16 +668,6 @@ export default function PrintApp() {
                       >
                         📄 Upload PDF
                       </button>
-                      {/* AI Generator (commented out for now) */}
-                      {/* <button
-                        onClick={() => setMode("ai-doc")}
-                        className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${mode === "ai-doc"
-                          ? "bg-white text-black shadow-sm"
-                          : "text-gray-500 hover:text-gray-700"
-                          }`}
-                      >
-                        ✨ AI Generator
-                      </button> */}
                       <button
                         onClick={() => setMode("a4-sheet")}
                         className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${mode === "a4-sheet"
@@ -566,10 +684,6 @@ export default function PrintApp() {
                   {mode === "upload" && (
                     <FileUpload onFilesChange={handleFilesChange} onContinue={handleContinue} totalPages={totalPages} />
                   )}
-                  {/* AI Generator (commented out for now) */}
-                  {/* {mode === "ai-doc" && (
-                    <AIDocumentGenerator onProceed={handleAIProceed} />
-                  )} */}
                   {mode === "a4-sheet" && (
                     <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <div className="space-y-4">
@@ -657,14 +771,31 @@ export default function PrintApp() {
                   platformFee={printPricing.platformFee}
                   totalCost={totalCost}
                   pricePerSheet={pricePerSheet}
+                  tierLabel={tieredResult.tierLabel}
+                  isDiscounted={tieredResult.isDiscounted}
+                  nextTierHint={tieredResult.nextTierHint}
                   sheetsToPrint={sheetsToPrint}
                   isAIDoc={isAIDoc}
                   copies={copies}
                   onCopiesChange={setCopies}
                   onConfigChange={handleConfigChange}
                   onBack={() => setStep("upload")}
-                  onPayment={handlePayment}
+                  onContinueToBinding={() => setStep("binding")}
+                  hasBindingServices={vendor?.pricing?.binding?.enabled !== false}
+                  onPayment={() => handlePayment()}
                   canProceed={canProceedToPayment()}
+                  isProcessing={isProcessing}
+                />
+              )}
+
+              {step === "binding" && (
+                <BindingSelection
+                  totalSheets={totalSheetsToPrint}
+                  printSubtotal={basePrintSubtotal}
+                  platformFee={printPricing.platformFee}
+                  bindingConfig={vendor?.pricing?.binding}
+                  onBack={() => setStep("config")}
+                  onConfirm={(data) => handlePayment(data)}
                   isProcessing={isProcessing}
                 />
               )}
@@ -723,7 +854,7 @@ export default function PrintApp() {
 
       {/* Footer */}
       {step !== "complete" && (
-        <div className="w-full py-6 flex flex-col items-center gap-4 mt-auto border-t border-gray-100 bg-white/50 backdrop-blur-sm">
+        <footer className="w-full py-6 flex flex-col items-center gap-4 mt-auto border-t border-gray-100 bg-white/50 backdrop-blur-sm">
           {isPoweredBy && (
             <div className="flex items-center gap-2 mb-1">
               <div className="w-5 h-5 bg-black rounded-md flex items-center justify-center">
@@ -739,24 +870,27 @@ export default function PrintApp() {
             <Link href="/orders" className="hover:text-black transition-colors font-semibold text-gray-600">
               My Orders
             </Link>
-            <Link href={`${basePath}/about`} className="hover:text-black transition-colors">
+            <Link href="/about" className="hover:text-black transition-colors">
               About
             </Link>
-            <Link href={`${basePath}/contact`} className="hover:text-black transition-colors">
+            <Link href={basePath ? `${basePath}/contact` : "/contact"} className="hover:text-black transition-colors">
               Contact
             </Link>
-            <Link href={`${basePath}/privacy`} className="hover:text-black transition-colors">
+            <Link href={basePath ? `${basePath}/privacy` : "/privacy"} className="hover:text-black transition-colors">
               Privacy
             </Link>
-            <Link href={`${basePath}/refund`} className="hover:text-black transition-colors">
+            <Link href={basePath ? `${basePath}/refund` : "/refund"} className="hover:text-black transition-colors">
               Refund
             </Link>
-            <Link href={`${basePath}/terms`} className="hover:text-black transition-colors">
+            <Link href={basePath ? `${basePath}/terms` : "/terms"} className="hover:text-black transition-colors">
               Terms
             </Link>
           </div>
-        </div>
+        </footer>
       )}
+      <PWAInstallPrompt storeName={storeName} />
     </main>
   );
 }
+
+export { PrintApp };

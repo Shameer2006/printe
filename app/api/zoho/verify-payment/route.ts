@@ -12,7 +12,7 @@ import { getAdminDb } from "@/lib/firebase-admin";
  */
 export async function POST(req: NextRequest) {
     try {
-        const { orderCode, paymentLinkId } = await req.json();
+        const { orderCode, paymentLinkId, vendorSlug } = await req.json();
 
         if (!orderCode) {
             return NextResponse.json({ error: "Missing orderCode" }, { status: 400 });
@@ -24,8 +24,21 @@ export async function POST(req: NextRequest) {
         }
 
         const db = getAdminDb();
-        const orderRef = db.collection("orders").doc(orderCode);
-        const orderSnap = await orderRef.get();
+        let orderRef = vendorSlug
+            ? db.collection("vendors").doc(vendorSlug).collection("orders").doc(orderCode)
+            : db.collection("orders").doc(orderCode);
+
+        let orderSnap = await orderRef.get();
+
+        // Fallback check to root orders if vendor doc not found
+        if (!orderSnap.exists && vendorSlug) {
+            const rootRef = db.collection("orders").doc(orderCode);
+            const rootSnap = await rootRef.get();
+            if (rootSnap.exists) {
+                orderRef = rootRef;
+                orderSnap = rootSnap;
+            }
+        }
 
         if (!orderSnap.exists) {
             return NextResponse.json({ error: "Order not found" }, { status: 404 });

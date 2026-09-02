@@ -12,6 +12,10 @@ export interface StoredOrder {
   isColor?: boolean;
   printSide?: "single" | "double";
   printLayout?: "1-in-1" | "2-in-1" | "4-in-1";
+  bindingId?: string;
+  bindingName?: string;
+  bindingOption?: string;
+  bindingPrice?: number;
   isA4SheetsOnly?: boolean;
   storeName?: string;
   vendorSlug?: string;

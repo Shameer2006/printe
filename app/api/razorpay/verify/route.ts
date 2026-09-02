@@ -6,7 +6,7 @@ import { doc, updateDoc } from "firebase/firestore";
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderCode } = body;
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderCode, vendorSlug } = body;
 
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !orderCode) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -27,22 +27,44 @@ export async function POST(req: NextRequest) {
 
         const isValid = expectedSignature === razorpay_signature;
 
-        const orderRef = doc(db, "orders", orderCode);
+        let orderRef = vendorSlug
+            ? doc(db, "vendors", vendorSlug, "orders", orderCode)
+            : doc(db, "orders", orderCode);
 
         if (isValid) {
-            await updateDoc(orderRef, {
-                payment_status: "PAID",
-                razorpay_order_id,
-                razorpay_payment_id,
-                razorpay_signature,
-            });
+            try {
+                await updateDoc(orderRef, {
+                    payment_status: "PAID",
+                    razorpay_order_id,
+                    razorpay_payment_id,
+                    razorpay_signature,
+                });
+            } catch {
+                if (vendorSlug) {
+                    await updateDoc(doc(db, "orders", orderCode), {
+                        payment_status: "PAID",
+                        razorpay_order_id,
+                        razorpay_payment_id,
+                        razorpay_signature,
+                    });
+                }
+            }
 
             return NextResponse.json({ success: true, verified: true });
         } else {
-            await updateDoc(orderRef, {
-                payment_status: "FAILED",
-                failureReason: "Signature verification failed",
-            });
+            try {
+                await updateDoc(orderRef, {
+                    payment_status: "FAILED",
+                    failureReason: "Signature verification failed",
+                });
+            } catch {
+                if (vendorSlug) {
+                    await updateDoc(doc(db, "orders", orderCode), {
+                        payment_status: "FAILED",
+                        failureReason: "Signature verification failed",
+                    });
+                }
+            }
 
             return NextResponse.json({ success: false, verified: false, error: "Payment verification failed" }, { status: 400 });
         }
