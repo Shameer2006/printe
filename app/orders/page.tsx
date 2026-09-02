@@ -25,6 +25,7 @@ import { db } from "@/lib/firebase";
 import { getOrderHistory, removeOrderFromHistory, StoredOrder } from "@/lib/order-history";
 import { getOrderDocRef } from "@/lib/orderCode";
 import { Button } from "@/components/ui/button";
+import { Money } from "@/components/Money";
 
 interface LiveOrderStatus {
   payment_status?: string;
@@ -423,9 +424,12 @@ export default function OrderHistoryPage() {
 
                     <div className="text-right">
                       <span className="text-gray-400 block mb-0.5">Amount Paid</span>
-                      <span className="font-bold text-sm text-gray-900">
-                        ₹{order.amount.toFixed(2)}
-                      </span>
+                      <Money value={order.amount} className="font-bold text-[13px] text-gray-900" />
+                      {(order.gatewayFee || order.platformFee) ? (
+                        <span className="block text-[10px] text-gray-400 leading-tight">
+                          incl. ₹{((order.gatewayFee || 0) + (order.platformFee || 0)).toFixed(2)} charges
+                        </span>
+                      ) : null}
                     </div>
                   </div>
 

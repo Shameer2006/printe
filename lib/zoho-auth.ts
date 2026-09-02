@@ -8,6 +8,21 @@
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
+/**
+ * The scope string Zoho returned with the last token refresh.
+ *
+ * Creating a payment link needs `ZohoPay.payments.CREATE`; *reading one back* needs
+ * `ZohoPay.payments.READ`. A refresh token minted with only CREATE works perfectly
+ * through checkout and then fails every verification afterwards — orders take the
+ * money and stay PENDING. /api/health surfaces this so it is a five-second check
+ * rather than a week of guessing.
+ */
+let lastGrantedScope: string | null = null;
+
+export function getLastGrantedScope(): string | null {
+    return lastGrantedScope;
+}
+
 export async function getZohoAccessToken(): Promise<string> {
     // Return cached token if it's still valid (with 5-minute buffer)
     if (cachedToken && Date.now() < cachedToken.expiresAt - 5 * 60 * 1000) {
@@ -44,6 +59,8 @@ export async function getZohoAccessToken(): Promise<string> {
         console.error("No access token in response:", data);
         throw new Error("Failed to obtain access token from Zoho");
     }
+
+    lastGrantedScope = typeof data.scope === "string" ? data.scope : null;
 
     cachedToken = {
         token: data.access_token,
